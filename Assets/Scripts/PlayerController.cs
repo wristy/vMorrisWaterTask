@@ -11,7 +11,7 @@ public class PlayerController : MonoBehaviour
     // References to components
     private CharacterController controller;  // Player's CharacterController
     private Transform cameraTransform;       // Camera for mouse look
-
+    private bool isFrozen = false; 
 
     void Start()
     {
@@ -21,9 +21,12 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        HandleLook();
-        HandleMovement();
-        HandleGravity();
+        if (!isFrozen)
+        {
+            HandleLook();
+            HandleMovement();
+            HandleGravity();
+        }
     }
 
     void HandleLook()
@@ -55,6 +58,15 @@ public class PlayerController : MonoBehaviour
         gravity -= 9.81f * Time.deltaTime;
         controller.Move( new Vector3(0, gravity, 0) );
         if ( controller.isGrounded ) gravity = 0;
+    }
+
+    public void FreezePlayer()
+    {
+        isFrozen = true;
+    }
+    public void UnfreezePlayer()
+    {
+        isFrozen = false;
     }
 
 }
