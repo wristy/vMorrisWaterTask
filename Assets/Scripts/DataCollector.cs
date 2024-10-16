@@ -14,10 +14,13 @@ public class DataCollector : MonoBehaviour
     private float totalTimeTaken = 0f;
 
     public GameObject player;
-    public string positionFileName = "PositionData.csv";
-    public string distanceFileName = "DistanceData.csv";
+    public string positionFileNameBase = "PositionData_trial";
+    public string distanceFileNameBase = "DistanceData_trial";
 
     private float positionLogTimer = 0f; 
+
+    private string currentPositionFileName;
+    private string currentDistanceFileName;
 
     public bool enableTotalDistance = true;
     public bool enableCoordinates = true;
@@ -75,9 +78,32 @@ public class DataCollector : MonoBehaviour
         }
     }
 
+    public void StartNewTrial(int trialNumber)
+    {
+        // Reset data
+        totalDistance = 0f;
+        totalTimeTaken = 0f;
+        numberOfIntersections = 0;
+        success = false;
+        positionLog.Clear();
+        positionLogTimer = 0f;
+
+        lastPosition = player.transform.position;
+        if (enableCoordinates)
+        {
+            LogPosition(lastPosition);
+        }
+
+        // Set file names based on trial number
+        currentPositionFileName = $"{positionFileNameBase}{trialNumber}.csv";
+        currentDistanceFileName = $"{distanceFileNameBase}{trialNumber}.csv";
+
+        Debug.Log($"DataCollector initialized for Trial {trialNumber}");
+    }
+
     public void ExportData()
     {
-        string fullPath = Path.Combine(Application.dataPath, positionFileName);
+        string fullPath = Path.Combine(Application.dataPath, currentPositionFileName);
         using (StreamWriter writer = new StreamWriter(fullPath))
         {
             writer.WriteLine(string.Join(", ", enabledColumns));
@@ -88,14 +114,14 @@ public class DataCollector : MonoBehaviour
             }
 
         }
-        Debug.Log("Data exported successfully.");
+        Debug.Log($"Data exported successfully to {currentPositionFileName}.");
     }
 
     public void ExportDistanceData()
     {
         if (enableTotalDistance)
         {
-            string fullPath = Path.Combine(Application.dataPath, distanceFileName);
+            string fullPath = Path.Combine(Application.dataPath, currentDistanceFileName);
          
             using (StreamWriter writer = new StreamWriter(fullPath))
             {
@@ -104,11 +130,5 @@ public class DataCollector : MonoBehaviour
             }
             Debug.Log("Distance data exported successfully.");
             }
-    }
-
- void OnApplicationQuit()
-    {
-        ExportData();
-        ExportDistanceData();
     }
 }

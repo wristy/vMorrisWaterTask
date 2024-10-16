@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 65000010288593042}
   m_Layer: 0
   m_Name: TreasureChest_01(2048)
-  m_TagString: Untagged
+  m_TagString: TreasureChest
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 4294967295
@@ -142,7 +142,7 @@ GameObject:
   - component: {fileID: 65000011956173344}
   m_Layer: 0
   m_Name: TreasureChest_Lid
-  m_TagString: Untagged
+  m_TagString: TreasureChest
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -17,6 +18,11 @@ public class TreasureChestManager : MonoBehaviour
     private Vector3 chestPosition;                 // Position where the chest will appear
     private bool chestFound = false;               // Flag to check if the chest has been found
 
+    public event Action OnChestFound;
+
+    public GameObject chestMarkerPrefab; // Assign via Inspector
+    private GameObject chestMarkerInstance;
+
     void Start()
     {
         // Spawn the chest position
@@ -34,7 +40,7 @@ public class TreasureChestManager : MonoBehaviour
     void SpawnChestPosition()
     {
         // Generate a random direction within a circle on the horizontal plane
-        Vector2 randomDirection = Random.insideUnitCircle * chestSpawnRadius;
+        Vector2 randomDirection = UnityEngine.Random.insideUnitCircle * chestSpawnRadius;
         Vector3 spawnPosition = new Vector3(randomDirection.x, 0, randomDirection.y) + playerController.transform.position;
 
         // Raycast to find the ground height at the chest position
@@ -47,6 +53,13 @@ public class TreasureChestManager : MonoBehaviour
         {
             // If no ground is found, default to player's Y position
             chestPosition = new Vector3(spawnPosition.x, playerController.transform.position.y, spawnPosition.z);
+        }
+
+        Debug.Log($"Chest spawned at: {chestPosition}");
+
+        if (chestMarkerPrefab != null)
+        {
+            chestMarkerInstance = Instantiate(chestMarkerPrefab, chestPosition, Quaternion.identity);
         }
 
     }
@@ -63,11 +76,38 @@ public class TreasureChestManager : MonoBehaviour
     {
         chestFound = true;
 
-        Instantiate(treasureChestPrefab, chestPosition, Quaternion.identity);
+        // Notify subscribers that the chest has been found
+        OnChestFound?.Invoke();
 
+        // Spawn the chest, facing the player, but still parallel to the ground
+        GameObject chest = Instantiate(treasureChestPrefab, chestPosition, Quaternion.identity);
+
+        Debug.Log($"Chest found at: {chestPosition}");
+
+        // Freeze the player
         playerController.FreezePlayer();
 
-        Debug.Log("You found the treasure chest!");
+        // Optional: Provide feedback to the player
+        Debug.Log("Chest found!");
+    }
+
+    public void ResetChest()
+    {
+        chestFound = false;
+
+        // Destroy existing chest instances to prevent duplicates
+        foreach (GameObject chest in GameObject.FindGameObjectsWithTag("TreasureChest"))
+        {
+            Destroy(chest);
+        }
+
+        // Re-instantiate the chest at the original position
+        // Instantiate(treasureChestPrefab, chestPosition, Quaternion.identity);
+
+        Debug.Log($"Chest reset at: {chestPosition}");
+
+        // Optional: Provide feedback
+        Debug.Log("Chest reset for the next trial.");
     }
 }
 
