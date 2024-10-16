@@ -6,6 +6,7 @@ public class PlayerController : MonoBehaviour
 {
     public float moveSpeed = 5.0f;   // Movement speed of the player
     public float turnSpeed = 100.0f;
+    public float gravity = -9.81f;
 
     // References to components
     private CharacterController controller;  // Player's CharacterController
@@ -22,6 +23,7 @@ public class PlayerController : MonoBehaviour
     {
         HandleLook();
         HandleMovement();
+        HandleGravity();
     }
 
     void HandleLook()
@@ -46,6 +48,13 @@ public class PlayerController : MonoBehaviour
             // Apply movement using the CharacterController
             controller.Move(move * moveSpeed * Time.deltaTime);
         }
+    }
+
+    void HandleGravity()
+    {
+        gravity -= 9.81f * Time.deltaTime;
+        controller.Move( new Vector3(0, gravity, 0) );
+        if ( controller.isGrounded ) gravity = 0;
     }
 
 }
