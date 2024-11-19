@@ -125,10 +125,10 @@ public class DataCollector : MonoBehaviour
          
             using (StreamWriter writer = new StreamWriter(fullPath))
             {
-                writer.WriteLine("tot_distance,number_of_intersections,success,total_time_taken");
-                writer.WriteLine($"{totalDistance},{numberOfIntersections},{success},{totalTimeTaken}");
+                writer.WriteLine("tot_distance,number_of_intersections,total_time_taken");
+                writer.WriteLine($"{totalDistance},{numberOfIntersections}{totalTimeTaken}");
             }
-            Debug.Log("Distance data exported successfully.");
-            }
+            Debug.Log($"Distance data exported successfully to {currentDistanceFileName}.");
+        }
     }
 }

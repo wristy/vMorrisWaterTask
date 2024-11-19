@@ -12,7 +12,6 @@ public class GameManager : MonoBehaviour
 
     // Trial management
     private int currentTrial = 1;
-    public int totalTrials = 5; // Set the number of trials you want
     private bool trialInProgress = false;
 
     void Start()
@@ -35,7 +34,7 @@ public class GameManager : MonoBehaviour
     /// </summary>
     void StartNextTrial()
     {
-        if (currentTrial > totalTrials)
+        if (currentTrial > GameSettings.numberOfTrials)
         {
             Debug.Log("All trials completed!");
             // Optional: Trigger end-of-experiment procedures

@@ -7,10 +7,12 @@ public class PlaceObjectsInCircle : MonoBehaviour
     public GameObject stonePrefab;  // Assign the stone prefab in the inspector
     public int numberOfStones = 10; // Number of stones to place
     public float radius = 20f;      // Radius of the circle
-    public Transform player;        // Reference to the player
+    public Transform player;        // Reference to the playe
+    public float size = 1f;
 
     void Start()
     {
+        radius = GameSettings.circleRadius;
         PlaceStonesAroundPlayer();
     }
 
@@ -30,6 +32,11 @@ public class PlaceObjectsInCircle : MonoBehaviour
 
             // Instantiate the stonePrefab at the calculated position and with no rotation
             GameObject stone =Instantiate(stonePrefab, stonePosition, Quaternion.identity);
+            stone.transform.localScale *= size;  // Add this line to scale the stone
+
+            Vector3 directionToCenter = (player.position - stone.transform.position).normalized;
+            stone.transform.rotation = Quaternion.LookRotation(-directionToCenter);  // Negative direction to face inward
+
 
             if (stone.GetComponent<Collider>() == null)
             {

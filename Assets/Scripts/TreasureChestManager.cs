@@ -7,7 +7,6 @@ public class TreasureChestManager : MonoBehaviour
     // Chest parameters
     [Header("Chest Settings")]
     public GameObject treasureChestPrefab;         // Reference to the chest prefab
-    public float chestSpawnRadius = 20.0f;        // Radius within which to spawn the chest
     public float chestDetectionDistance = 2.0f;   // Distance at which the chest is "found"
 
     // Player reference
@@ -40,20 +39,11 @@ public class TreasureChestManager : MonoBehaviour
     void SpawnChestPosition()
     {
         // Generate a random direction within a circle on the horizontal plane
-        Vector2 randomDirection = UnityEngine.Random.insideUnitCircle * chestSpawnRadius;
+        Vector2 randomDirection = UnityEngine.Random.insideUnitCircle * (GameSettings.circleRadius - 2);
         Vector3 spawnPosition = new Vector3(randomDirection.x, 0, randomDirection.y) + playerController.transform.position;
 
-        // Raycast to find the ground height at the chest position
-        RaycastHit hit;
-        if (Physics.Raycast(spawnPosition + Vector3.up * 10, Vector3.down, out hit, 20))
-        {
-            chestPosition = hit.point;
-        }
-        else
-        {
-            // If no ground is found, default to player's Y position
-            chestPosition = new Vector3(spawnPosition.x, playerController.transform.position.y, spawnPosition.z);
-        }
+        chestPosition = new Vector3(spawnPosition.x, 0, spawnPosition.z);
+        
 
         Debug.Log($"Chest spawned at: {chestPosition}");
 
@@ -79,8 +69,13 @@ public class TreasureChestManager : MonoBehaviour
         // Notify subscribers that the chest has been found
         OnChestFound?.Invoke();
 
-        // Spawn the chest, facing the player, but still parallel to the ground
-        GameObject chest = Instantiate(treasureChestPrefab, chestPosition, Quaternion.identity);
+        // Spawn the chest, right in front of the player, at 3 meters
+        // make this higher than the player's eye level
+        Vector3 chestViewPosition = playerController.transform.position + playerController.transform.forward * 2 + Vector3.up * 1;
+
+        GameObject chest = Instantiate(treasureChestPrefab, chestViewPosition, Quaternion.Euler(-90, 0, 0));
+        // rotate -90, 0, 0
+        chest.transform.localScale *= 0.5f;
 
         Debug.Log($"Chest found at: {chestPosition}");
 
