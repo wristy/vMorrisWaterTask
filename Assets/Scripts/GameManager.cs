@@ -9,14 +9,17 @@ public class GameManager : MonoBehaviour
     public TreasureChestManager treasureChestManager;
     public DataCollector dataCollector;
     public PlayerController playerController;
+    public CueManager cueManager;
 
     // Trial management
     private int currentTrial = 1;
     private bool trialInProgress = false;
 
+    private float trialTimer = 0f;
+
     void Start()
     {
-        if (treasureChestManager == null || dataCollector == null || playerController == null)
+        if (treasureChestManager == null || dataCollector == null || playerController == null || cueManager == null)
         {
             Debug.LogError("One or more manager references are missing in the GameManager.");
             return;
@@ -56,11 +59,28 @@ public class GameManager : MonoBehaviour
             treasureChestManager.ResetChest();
         }
 
+        trialTimer = 0f;
+
         // Unfreeze the player to allow movement
         playerController.UnfreezePlayer();
 
+        cueManager.UpdateCues(GameSettings.numberOfProximalCues);
+
         // Optional: Update UI
         // uiManager.UpdateTrialDisplay(currentTrial);
+    }
+
+    void Update()
+    {
+        if (trialInProgress)
+        {
+            trialTimer += Time.deltaTime;
+        }
+
+        if (trialTimer >= GameSettings.timeLimit)
+        {
+            StartNextTrial();
+        }
     }
     void OnChestFound()
     {

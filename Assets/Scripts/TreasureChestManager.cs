@@ -21,10 +21,23 @@ public class TreasureChestManager : MonoBehaviour
 
     public GameObject chestMarkerPrefab; // Assign via Inspector
     private GameObject chestMarkerInstance;
+    private GameObject treasureChestInstance;
+    
 
     void Start()
     {
-        // Spawn the chest position
+        // Generate a random direction within a circle on the horizontal plane
+        Vector2 randomDirection = UnityEngine.Random.insideUnitCircle * (GameSettings.circleRadius - 2);
+        Vector3 spawnPosition = new Vector3(randomDirection.x, 0, randomDirection.y) + playerController.transform.position;
+
+        chestPosition = new Vector3(spawnPosition.x, 0, spawnPosition.z);
+
+        // make sure the chest is not too close to the player
+        if (Vector3.Distance(chestPosition, playerController.transform.position) < 2f)
+        {
+            chestPosition += new Vector3(2, 0, 0);
+        }
+
         SpawnChestPosition();
     }
 
@@ -38,25 +51,32 @@ public class TreasureChestManager : MonoBehaviour
 
     void SpawnChestPosition()
     {
-        // Generate a random direction within a circle on the horizontal plane
-        Vector2 randomDirection = UnityEngine.Random.insideUnitCircle * (GameSettings.circleRadius - 2);
-        Vector3 spawnPosition = new Vector3(randomDirection.x, 0, randomDirection.y) + playerController.transform.position;
-
-        chestPosition = new Vector3(spawnPosition.x, 0, spawnPosition.z);
+        
         
 
         Debug.Log($"Chest spawned at: {chestPosition}");
 
-        if (chestMarkerPrefab != null)
+        // Handle marker visibility based on trial type
+        if (GameSettings.trialType == GameSettings.TrialType.Visible)
         {
-            chestMarkerInstance = Instantiate(chestMarkerPrefab, chestPosition, Quaternion.identity);
+            if (chestMarkerPrefab != null)
+            {
+                chestMarkerInstance = Instantiate(chestMarkerPrefab, chestPosition, Quaternion.identity);
+            }
         }
-
+        else if (GameSettings.trialType == GameSettings.TrialType.Invisible)
+        {
+            if (chestMarkerPrefab != null)
+            {
+                chestMarkerInstance = Instantiate(chestMarkerPrefab, chestPosition, Quaternion.identity);
+                chestMarkerInstance.SetActive(false); // Marker is invisible
+            }
+        }
     }
     void CheckChestProximity()
     {
         float distance = Vector3.Distance(playerController.transform.position, chestPosition);
-        if (distance <= chestDetectionDistance)
+        if (distance <= chestDetectionDistance && GameSettings.trialType != GameSettings.TrialType.Absent)
         {
             FindChest();
         }
@@ -69,13 +89,14 @@ public class TreasureChestManager : MonoBehaviour
         // Notify subscribers that the chest has been found
         OnChestFound?.Invoke();
 
-        // Spawn the chest, right in front of the player, at 3 meters
-        // make this higher than the player's eye level
-        Vector3 chestViewPosition = playerController.transform.position + playerController.transform.forward * 2 + Vector3.up * 1;
-
-        GameObject chest = Instantiate(treasureChestPrefab, chestViewPosition, Quaternion.Euler(-90, 0, 0));
-        // rotate -90, 0, 0
-        chest.transform.localScale *= 0.5f;
+       // Spawn the chest if the trial type is not Absent
+        if (GameSettings.trialType != GameSettings.TrialType.Absent)
+        {
+            // Spawn chest in front of the player
+            Vector3 chestViewPosition = playerController.transform.position + playerController.transform.forward * 2 + Vector3.up * 1;
+            treasureChestInstance = Instantiate(treasureChestPrefab, chestViewPosition, Quaternion.Euler(-90, 0, 0));
+            treasureChestInstance.transform.localScale *= 0.5f;
+        }
 
         Debug.Log($"Chest found at: {chestPosition}");
 
@@ -90,16 +111,22 @@ public class TreasureChestManager : MonoBehaviour
     {
         chestFound = false;
 
-        // Destroy existing chest instances to prevent duplicates
-        foreach (GameObject chest in GameObject.FindGameObjectsWithTag("TreasureChest"))
+         // Destroy existing chest and marker instances to prevent duplicates
+        if (treasureChestInstance != null)
         {
-            Destroy(chest);
+            Destroy(treasureChestInstance);
         }
 
-        // Re-instantiate the chest at the original position
-        // Instantiate(treasureChestPrefab, chestPosition, Quaternion.identity);
+        if (chestMarkerInstance != null)
+        {
+            Destroy(chestMarkerInstance);
+        }
 
-        Debug.Log($"Chest reset at: {chestPosition}");
+        // Only spawn chest position if the trial type is not Absent
+        if (GameSettings.trialType != GameSettings.TrialType.Absent)
+        {
+            SpawnChestPosition();
+        }
 
         // Optional: Provide feedback
         Debug.Log("Chest reset for the next trial.");

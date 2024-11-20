@@ -95,15 +95,15 @@ public class DataCollector : MonoBehaviour
         }
 
         // Set file names based on trial number
-        currentPositionFileName = $"{positionFileNameBase}{trialNumber}.csv";
-        currentDistanceFileName = $"{distanceFileNameBase}{trialNumber}.csv";
+        currentPositionFileName = $"{positionFileNameBase}{trialNumber}_{GameSettings.participantID}.csv";
+        currentDistanceFileName = $"{distanceFileNameBase}{trialNumber}_{GameSettings.participantID}.csv";
 
         Debug.Log($"DataCollector initialized for Trial {trialNumber}");
     }
 
     public void ExportData()
     {
-        string fullPath = Path.Combine(Application.dataPath, currentPositionFileName);
+        string fullPath = Path.Combine(Application.dataPath, "ExpData", currentPositionFileName);
         using (StreamWriter writer = new StreamWriter(fullPath))
         {
             writer.WriteLine(string.Join(", ", enabledColumns));
@@ -121,12 +121,12 @@ public class DataCollector : MonoBehaviour
     {
         if (enableTotalDistance)
         {
-            string fullPath = Path.Combine(Application.dataPath, currentDistanceFileName);
+            string fullPath = Path.Combine(Application.dataPath, "ExpData", currentDistanceFileName);
          
             using (StreamWriter writer = new StreamWriter(fullPath))
             {
-                writer.WriteLine("tot_distance,number_of_intersections,total_time_taken");
-                writer.WriteLine($"{totalDistance},{numberOfIntersections}{totalTimeTaken}");
+                writer.WriteLine("tot_distance,total_time_taken");
+                writer.WriteLine($"{totalDistance},{totalTimeTaken}");
             }
             Debug.Log($"Distance data exported successfully to {currentDistanceFileName}.");
         }

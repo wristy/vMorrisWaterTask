@@ -848,6 +848,55 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4421704745708670, guid: 931ecb32d754b3f40afc9a688c8cea66, type: 3}
   m_PrefabInstance: {fileID: 1784612789}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &493210101
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 493210103}
+  - component: {fileID: 493210102}
+  m_Layer: 0
+  m_Name: CueManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &493210102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 493210101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cb1ee66f23cb46f28777586d3d9349e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  allCues:
+  - {fileID: 1258063020}
+  - {fileID: 2066024005}
+  - {fileID: 859066011}
+  - {fileID: 377582276}
+--- !u!4 &493210103
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 493210101}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 700.7404, y: 426.32452, z: -0.8753052}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &501237302
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1618,7 +1667,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   treasureChestPrefab: {fileID: 1000013073752430, guid: 9a3eaaf9335b479419077f71b0b9ca11, type: 3}
-  chestSpawnRadius: 18
   chestDetectionDistance: 2
   playerController: {fileID: 805100625}
   chestMarkerPrefab: {fileID: 377582276}
@@ -1655,7 +1703,12 @@ MonoBehaviour:
   treasureChestManager: {fileID: 805100626}
   dataCollector: {fileID: 805100627}
   playerController: {fileID: 805100625}
-  totalTrials: 5
+  cueManager: {fileID: 493210102}
+--- !u!1 &859066011 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 65a7edf19579e074d9be2f0943e98b6f, type: 3}
+  m_PrefabInstance: {fileID: 266359904}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &948072201
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2136,6 +2189,11 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1103891517}
   m_Mesh: {fileID: 4300000, guid: 679283963e23da7408c0cc75a881a565, type: 3}
+--- !u!1 &1258063020 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: cc5fa9da241d7ba40bd7bd9ea45460fd, type: 3}
+  m_PrefabInstance: {fileID: 385386231}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1327931278
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3559,6 +3617,11 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2059237734}
   m_Mesh: {fileID: 4300000, guid: 679283963e23da7408c0cc75a881a565, type: 3}
+--- !u!1 &2066024005 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 10769747d2e330046a3d4d3f68b9237d, type: 3}
+  m_PrefabInstance: {fileID: 1937465975}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2068124182
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3643,3 +3706,4 @@ SceneRoots:
   - {fileID: 1843488110}
   - {fileID: 1660432805}
   - {fileID: 346624970}
+  - {fileID: 493210103}
