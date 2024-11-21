@@ -13,4 +13,5 @@ public static class GameSettings
     }
 
     public static TrialType trialType = TrialType.Visible; // Default value
+    public static int timeLimit = 10; // Default value
 }
