@@ -1,0 +1,11 @@
+# File produced by Open Asset Import Library (http://www.assimp.sf.net)
+# (assimp v3.1.68452469)
+
+newmtl Steel_-_Satin
+kd 0.162642 0.162642 0.162642
+illum 1
+
+newmtl ABS_(White)
+kd 0.8 0.8 0.8
+illum 1
+

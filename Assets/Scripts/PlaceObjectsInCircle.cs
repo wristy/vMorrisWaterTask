@@ -31,7 +31,7 @@ public class PlaceObjectsInCircle : MonoBehaviour
             Vector3 stonePosition = new Vector3(x, - player.position.y, z) + player.position;
 
             // Instantiate the stonePrefab at the calculated position and with no rotation
-            GameObject stone =Instantiate(stonePrefab, stonePosition, Quaternion.identity);
+            GameObject stone = Instantiate(stonePrefab, stonePosition, Quaternion.identity);
             stone.transform.localScale *= size;  // Add this line to scale the stone
 
             Vector3 directionToCenter = (player.position - stone.transform.position).normalized;

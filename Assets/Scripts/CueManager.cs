@@ -21,53 +21,51 @@ public class CueManager : MonoBehaviour
     /// <param name="numberOfCues">Number of cues to activate and position.</param>
     public void UpdateCues(int numberOfCues)
     {
-        // Clamp the number of cues between 0 and the total available cues
         numberOfCues = Mathf.Clamp(numberOfCues, 0, allCues.Length);
 
         if (numberOfCues == 0)
         {
-            // Disable all cues if the number is zero
             foreach (var cue in allCues)
-            {
                 cue.SetActive(false);
-            }
             return;
         }
 
-        // Calculate the angle increment for even spacing
-        float angleIncrement = 360f / numberOfCues;
+        // Reference to current trial cue positions
+        TrialDefinition td = GameSettings.allTrials[GameManager.CurrentTrialIndex]; // you'll need to add this static reference or pass the index in
+        List<Vector3> customPositions = td.customCuePositions;
 
         for (int i = 0; i < allCues.Length; i++)
         {
             if (i < numberOfCues)
             {
-                // Activate the cue
                 allCues[i].SetActive(true);
 
-                // Calculate the angle for this cue
-                float angle = i * angleIncrement;
+                Vector3 cuePosition;
 
-                // Convert angle to radians for position calculation
-                float rad = angle * Mathf.Deg2Rad;
+                // Use custom cue position if available
+                if (customPositions != null && i < customPositions.Count)
+                {
+                    cuePosition = customPositions[i];
+                }
+                else
+                {
+                    // fallback to evenly spaced
+                    float angleIncrement = 360f / numberOfCues;
+                    float angle = i * angleIncrement;
+                    float rad = angle * Mathf.Deg2Rad;
+                    cuePosition = new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad)) * (GameSettings.circleRadius + 3f);
+                }
 
-                // Determine the position based on angle and radius
-                float x = Mathf.Cos(rad) * radius;
-                float z = Mathf.Sin(rad) * radius;
-
-                Vector3 cuePosition = new Vector3(x, 0, z);
-
-                // Set the cue's position
                 allCues[i].transform.position = cuePosition;
 
-                // Optionally, rotate the cue to face the center
-                Vector3 directionToCenter = (- cuePosition).normalized;
+                Vector3 directionToCenter = (-cuePosition).normalized;
                 allCues[i].transform.rotation = Quaternion.LookRotation(directionToCenter);
             }
             else
             {
-                // Deactivate the cue if it's not needed
                 allCues[i].SetActive(false);
             }
         }
     }
+
 }

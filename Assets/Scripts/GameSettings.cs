@@ -1,9 +1,16 @@
 public static class GameSettings
 {
-    public static float circleRadius = 20f; // Default value
-    public static int numberOfTrials = 5; // Default value
-    public static int numberOfProximalCues = 4; // Default value
-    public static int participantID = 1234; // Default value
+    // Participant ID or other global info
+    public static int participantID = 0;
+    public static int numberOfTrials = 1;
+
+    // “Default” trial fields if you still want them 
+    // for quick single‐trial usage:
+    public static float circleRadius = 20f;
+    public static int numberOfProximalCues = 4;
+    public static bool enableDistalCues = true;
+    public static TrialType trialType = TrialType.Visible;
+    public static int timeLimit = 99999;
 
     public enum TrialType
     {
@@ -12,6 +19,5 @@ public static class GameSettings
         Absent
     }
 
-    public static TrialType trialType = TrialType.Visible; // Default value
-    public static int timeLimit = 10; // Default value
+    public static TrialDefinition[] allTrials;
 }

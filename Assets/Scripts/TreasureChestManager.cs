@@ -22,7 +22,12 @@ public class TreasureChestManager : MonoBehaviour
     public GameObject chestMarkerPrefab; // Assign via Inspector
     private GameObject chestMarkerInstance;
     private GameObject treasureChestInstance;
-    
+
+    public Vector3 ChestPosition
+    {
+        get { return chestPosition; }
+    }
+
 
     void Start()
     {
@@ -51,8 +56,7 @@ public class TreasureChestManager : MonoBehaviour
 
     void SpawnChestPosition()
     {
-        
-        
+
 
         Debug.Log($"Chest spawned at: {chestPosition}");
 
@@ -89,7 +93,7 @@ public class TreasureChestManager : MonoBehaviour
         // Notify subscribers that the chest has been found
         OnChestFound?.Invoke();
 
-       // Spawn the chest if the trial type is not Absent
+        // Spawn the chest if the trial type is not Absent
         if (GameSettings.trialType != GameSettings.TrialType.Absent)
         {
             // Spawn chest in front of the player
@@ -101,7 +105,7 @@ public class TreasureChestManager : MonoBehaviour
         Debug.Log($"Chest found at: {chestPosition}");
 
         // Freeze the player
-        playerController.FreezePlayer();
+        // playerController.FreezePlayer();
 
         // Optional: Provide feedback to the player
         Debug.Log("Chest found!");
@@ -111,7 +115,7 @@ public class TreasureChestManager : MonoBehaviour
     {
         chestFound = false;
 
-         // Destroy existing chest and marker instances to prevent duplicates
+        // Destroy existing chest and marker instances to prevent duplicates
         if (treasureChestInstance != null)
         {
             Destroy(treasureChestInstance);
