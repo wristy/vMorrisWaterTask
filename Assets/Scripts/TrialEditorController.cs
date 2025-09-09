@@ -4,389 +4,567 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using System.Collections.Generic;
+using System.IO;
+using System.Collections;
 
 public class TrialEditorController : MonoBehaviour
 {
+    // Hard bounds (override any serialized inspector values)
+    private const float HardMinCueOffset = 2f;
+    private const float HardMaxCueOffset = 50f;
     [Header("UI References")]
-    public TMP_Text trialLabel; // e.g. “Trial 1 of 5”
+    public TMP_Text trialLabel;
     public TMP_InputField radiusInput;
     public TMP_InputField cuesInput;
     public TMP_InputField timeLimitInput;
     public TMP_Dropdown trialTypeDropdown;
+    public Button saveButton;
+    public Button loadButton;
+    public TMP_InputField fileNameInput;
 
-    // One dropdown for how we pick the starting location
+    [Header("Cue Offset UI")]
+    public Slider cueDistanceSlider;      // 0.5..10 (assign in Inspector)
+    public TMP_Text cueDistanceValueText; // shows "X.X m"
+    public float cueDistanceMinMeters = HardMinCueOffset; // not relied upon at runtime
+    public float cueDistanceMaxMeters = HardMaxCueOffset;  // not relied upon at runtime
+    public float cueMarkerUiEdgeScale = 0.55f; // fraction of UI radius for blue markers
+
+
+    public TMP_Text statusText;
+
+    public TMP_Dropdown savedFilesDropdown; // assign via Inspector
+
+
     public TMP_Dropdown startingLocationDropdown;
-
-    // One dropdown for how we place the proximal cues
     public TMP_Dropdown cuePlacementDropdown;
-
-    // One dropdown for how we place the treasure chest
     public TMP_Dropdown chestPlacementDropdown;
     public Toggle distalCueToggle;
-    public List<Vector3> customCuePositions = new List<Vector3>();
-    public RectTransform cueMarkerContainer;
 
+    public RectTransform cueMarkerContainer; // Parent for blue cue markers
 
-    public RectTransform startingLocationCircle;
-    // Optional: A marker to display the selected point in the UI.
-    public RectTransform selectedMarker; // green dot for start
-    public RectTransform cueMarkerPrefab; // blue dot for cues
-    public RectTransform chestMarkerPrefab; // e.g. a gold dot for chest
-    public RectTransform markerContainer; // parent container for all dots
+    public RectTransform startingLocationCircle; // The main clickable black circle
+    public RectTransform selectedMarker;      // Green dot for start (ensure assigned)
+    public RectTransform cueMarkerPrefab;     // Blue dot for cues (ensure assigned)
+    public RectTransform chestMarkerPrefab;   // Gold dot for chest (ensure assigned)
+    private GameObject chestMarkerInstance; // UI instance for the gold treasure marker
 
     public Button prevButton;
     public Button nextButton;
     public Button doneButton;
     public Button copyToAllButton;
-    private TrialDefinition currentTrialDefinition;
+    public Toggle[] cueToggles; // Assign 8 toggles in the Inspector
 
 
-    public string nextSceneName = "TrialScene"; // Or wherever you go after editing
-
+    public string nextSceneName = "TrialScene";
     private int currentTrialIndex = 0;
 
     void Start()
     {
-        // Display the first trial
+        // Ensure all marker prefabs are actually assigned
+        if (selectedMarker == null) Debug.LogError("SelectedMarker (Green Dot) is not assigned in Inspector!");
+        if (cueMarkerPrefab == null) Debug.LogError("CueMarkerPrefab (Blue Dot) is not assigned in Inspector!");
+        if (chestMarkerPrefab == null) Debug.LogError("ChestMarkerPrefab (Gold Dot) is not assigned in Inspector!");
+        if (startingLocationCircle == null) Debug.LogError("StartingLocationCircle is not assigned!");
+        if (cueMarkerContainer == null) Debug.LogError("CueMarkerContainer is not assigned!");
+
+        if (cueDistanceSlider != null)
+        {
+            // Force hard bounds regardless of serialized values
+            cueDistanceSlider.minValue = HardMinCueOffset;
+            cueDistanceSlider.maxValue = HardMaxCueOffset;
+            cueDistanceSlider.onValueChanged.AddListener(OnCueDistanceChanged);
+        }
+
+
         RefreshUIFromData();
         UpdateButtonInteractables();
 
-        // Hook up button actions
         prevButton.onClick.AddListener(OnClickPrev);
         nextButton.onClick.AddListener(OnClickNext);
         doneButton.onClick.AddListener(OnClickDone);
         copyToAllButton.onClick.AddListener(OnCopyToAll);
+        saveButton.onClick.AddListener(SaveSettingsToFile);
+        loadButton.onClick.AddListener(OnLoadFromDropdown);
+        cuesInput.onEndEdit.AddListener(OnNumberOfCuesChanged);
 
-        // Also wire up the toggles or dropdowns if needed
+
         distalCueToggle.isOn = GameSettings.enableDistalCues;
 
-        // If you want an “onValueChanged” callback for each dropdown
         startingLocationDropdown.onValueChanged.AddListener((_) => OnStartingLocationOptionChanged());
         cuePlacementDropdown.onValueChanged.AddListener((_) => OnCuePlacementOptionChanged());
         chestPlacementDropdown.onValueChanged.AddListener((_) => OnChestPlacementOptionChanged());
+
+        PopulateSavedFilesDropdown();
+
+        foreach (Toggle toggle in cueToggles)
+        {
+            toggle.onValueChanged.AddListener(delegate { EnforceCueLimit(); });
+        }
     }
 
-    public void OnClickPrev()
-    {
-        // Save current UI into currentTrialIndex, then go back
-        SaveUIIntoData();
-        currentTrialIndex--;
-        RefreshUIFromData();
-        UpdateButtonInteractables();
-    }
-
-    public void OnClickNext()
-    {
-        // Save UI into data, then go forward
-        SaveUIIntoData();
-        currentTrialIndex++;
-        RefreshUIFromData();
-        UpdateButtonInteractables();
-    }
-
-
+    public void OnClickPrev() { SaveUIIntoData(); currentTrialIndex--; RefreshUIFromData(); UpdateButtonInteractables(); }
+    public void OnClickNext() { SaveUIIntoData(); currentTrialIndex++; RefreshUIFromData(); UpdateButtonInteractables(); }
     public void OnClickDone()
     {
-        // Save UI into data one last time
         SaveUIIntoData();
-
-
-        currentTrialDefinition = GameSettings.allTrials[0];
-
-        // Copy the current trial’s data into the GameSettings
-        GameSettings.circleRadius = currentTrialDefinition.circleRadius;
-        GameSettings.numberOfProximalCues = currentTrialDefinition.numberOfProximalCues;
-        GameSettings.trialType = currentTrialDefinition.trialType;
-        GameSettings.timeLimit = currentTrialDefinition.timeLimit;
+        if (GameSettings.allTrials != null && GameSettings.allTrials.Length > 0)
+        {
+            TrialDefinition firstTrial = GameSettings.allTrials[0];
+            GameSettings.circleRadius = firstTrial.circleRadius;
+            GameSettings.numberOfProximalCues = firstTrial.numberOfProximalCues;
+            GameSettings.trialType = firstTrial.trialType;
+            GameSettings.timeLimit = firstTrial.timeLimit;
+        }
         GameSettings.enableDistalCues = distalCueToggle.isOn;
-
-
-        // Move on to the final or next scene
         SceneManager.LoadScene(nextSceneName);
     }
-
     void OnCopyToAll()
     {
-        // Save current UI settings into data.
         SaveUIIntoData();
-
-        // Get the current trial settings.
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0 || currentTrialIndex >= GameSettings.allTrials.Length) return;
         TrialDefinition currentSettings = GameSettings.allTrials[currentTrialIndex];
-
-        // Iterate through all trials and copy the current settings.
         for (int i = 0; i < GameSettings.allTrials.Length; i++)
         {
-            if (i == currentTrialIndex)
-                continue;
-
-            GameSettings.allTrials[i].circleRadius = currentSettings.circleRadius;
-            GameSettings.allTrials[i].numberOfProximalCues = currentSettings.numberOfProximalCues;
-            GameSettings.allTrials[i].trialType = currentSettings.trialType;
-            GameSettings.allTrials[i].timeLimit = currentSettings.timeLimit;
-            GameSettings.allTrials[i].startingLocationOption = currentSettings.startingLocationOption;
-            GameSettings.allTrials[i].customStartingPosition = currentSettings.customStartingPosition;
-            GameSettings.allTrials[i].customCuePositions = new List<Vector3>(currentSettings.customCuePositions);
+            if (i == currentTrialIndex) continue;
+            GameSettings.allTrials[i] = new TrialDefinition // Create a new instance or deep copy
+            {
+                circleRadius = currentSettings.circleRadius,
+                numberOfProximalCues = currentSettings.numberOfProximalCues,
+                trialType = currentSettings.trialType,
+                timeLimit = currentSettings.timeLimit,
+                startingLocationOption = currentSettings.startingLocationOption,
+                customStartingPosition = currentSettings.customStartingPosition,
+                cuePlacementOption = currentSettings.cuePlacementOption,
+                customCuePositions = new List<Vector3>(currentSettings.customCuePositions),
+                chestPlacementOption = currentSettings.chestPlacementOption,
+                customTreasureChestPosition = currentSettings.customTreasureChestPosition,
+                cueSelections = (bool[])currentSettings.cueSelections.Clone()
+            };
         }
-
-        // Optionally, refresh the UI so all trials show the updated settings.
         RefreshUIFromData();
-        Debug.Log("Copied current trial settings to all trials.");
     }
-
-
 
     void RefreshUIFromData()
     {
-        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0) return;
-
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0 || currentTrialIndex >= GameSettings.allTrials.Length)
+        {
+            // Consider disabling UI or showing an error
+            Debug.LogWarning("RefreshUIFromData: Trial data invalid or index out of bounds.");
+            return;
+        }
         TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
-        trialLabel.text = $"Trial {currentTrialIndex + 1} of {GameSettings.allTrials.Length}";
 
+        if (cueDistanceSlider != null)
+        {
+            // Clamp and reflect hard bounds
+            float clamped = Mathf.Clamp(td.cueDistanceFromEdge, HardMinCueOffset, HardMaxCueOffset);
+            if (Mathf.Abs(clamped - td.cueDistanceFromEdge) > 0.0001f) td.cueDistanceFromEdge = clamped;
+            cueDistanceSlider.minValue = HardMinCueOffset;
+            cueDistanceSlider.maxValue = HardMaxCueOffset;
+            cueDistanceSlider.SetValueWithoutNotify(td.cueDistanceFromEdge);
+        }
+        UpdateCueDistanceLabel(td.cueDistanceFromEdge);
+
+        trialLabel.text = $"Trial {currentTrialIndex + 1} of {GameSettings.allTrials.Length}";
         radiusInput.text = td.circleRadius.ToString();
         cuesInput.text = td.numberOfProximalCues.ToString();
         timeLimitInput.text = td.timeLimit.ToString();
-
         trialTypeDropdown.value = (int)td.trialType;
         startingLocationDropdown.value = (int)td.startingLocationOption;
+        cuePlacementDropdown.value = (int)td.cuePlacementOption;
+        chestPlacementDropdown.value = (int)td.chestPlacementOption;
+        distalCueToggle.isOn = GameSettings.enableDistalCues;
 
-        // Update circle UI: if Circle option is selected, show the circle and reset the pointer;
-        // otherwise, hide them.
-        if (td.startingLocationOption == StartingLocationOption.Circle)
+        for (int i = 0; i < cueToggles.Length; i++)
         {
-            startingLocationCircle.gameObject.SetActive(true);
-            if (selectedMarker != null)
+            if (i < td.cueSelections.Length)
+                cueToggles[i].isOn = td.cueSelections[i];
+        }
+
+
+        UpdateUIVisibilityAndMarkers(td);
+        EnforceCueLimit();
+    }
+
+    void UpdateUIVisibilityAndMarkers(TrialDefinition td)
+    {
+        bool showMainCircle = td.startingLocationOption == StartingLocationOption.Circle ||
+                              td.cuePlacementOption == CuePlacementOption.CircleManual ||
+                              td.chestPlacementOption == ChestPlacementOption.CircleManual;
+        if (startingLocationCircle != null) startingLocationCircle.gameObject.SetActive(showMainCircle);
+
+        // Starting Location Marker (Green)
+        if (selectedMarker != null)
+        {
+            if (td.startingLocationOption == StartingLocationOption.Circle && td.customStartingPosition.magnitude > 0.001f)
+
             {
-                selectedMarker.anchoredPosition = Vector2.zero; // Center the pointer
+                PositionMarkerOnUI(selectedMarker, td.customStartingPosition, td.circleRadius);
+                selectedMarker.gameObject.SetActive(true);
+            }
+            else
+            {
                 selectedMarker.gameObject.SetActive(false);
             }
-            // td.customStartingPosition = Vector3.zero;
         }
-        else
-        {
-            startingLocationCircle.gameObject.SetActive(false);
-            if (selectedMarker != null)
-            {
-                selectedMarker.gameObject.SetActive(false);
-            }
-        }
-        RegenerateCueMarkers();
+
+        // Cue Markers (Blue)
+        RegenerateCueMarkers(td);
+
+        // Treasure Marker (Gold)
+        RegenerateTreasureChestMarker(td);
     }
 
     void SaveUIIntoData()
     {
-        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0) return;
-
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0 || currentTrialIndex >= GameSettings.allTrials.Length) return;
         TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
 
-        if (radiusInput == null)
-            Debug.LogError("radiusInput is null!");
-        if (cuesInput == null)
-            Debug.LogError("cuesInput is null!");
-        if (timeLimitInput == null)
-            Debug.LogError("timeLimitInput is null!");
-        if (trialTypeDropdown == null)
-            Debug.LogError("trialTypeDropdown is null!");
-        if (startingLocationDropdown == null)
-            Debug.LogError("startingLocationDropdown is null!");
+        if (cueDistanceSlider != null)
+            td.cueDistanceFromEdge = Mathf.Clamp(cueDistanceSlider.value, HardMinCueOffset, HardMaxCueOffset);
 
-        // Parse user input safely
-        if (float.TryParse(radiusInput.text, out float rad))
-            td.circleRadius = rad;
 
-        if (int.TryParse(cuesInput.text, out int cues))
-            td.numberOfProximalCues = cues;
-
-        if (int.TryParse(timeLimitInput.text, out int time))
-            td.timeLimit = time;
-
+        if (float.TryParse(radiusInput.text, out float rad)) td.circleRadius = rad;
+        if (int.TryParse(cuesInput.text, out int nCues)) td.numberOfProximalCues = nCues;
+        if (int.TryParse(timeLimitInput.text, out int time)) td.timeLimit = time;
         td.trialType = (GameSettings.TrialType)trialTypeDropdown.value;
+        td.startingLocationOption = (StartingLocationOption)startingLocationDropdown.value;
+        td.cuePlacementOption = (CuePlacementOption)cuePlacementDropdown.value;
+        td.chestPlacementOption = (ChestPlacementOption)chestPlacementDropdown.value;
+        GameSettings.enableDistalCues = distalCueToggle.isOn;
 
-        GameSettings.allTrials[currentTrialIndex].startingLocationOption = (StartingLocationOption)startingLocationDropdown.value;
+        for (int i = 0; i < cueToggles.Length && i < td.cueSelections.Length; i++)
+        {
+            td.cueSelections[i] = cueToggles[i].isOn;
+        }
     }
 
-    // ------------------------------------------------------------------
-    // Dropdown callbacks
-    // ------------------------------------------------------------------
-    // void OnStartingLocationOptionChanged()
-    // {
-    //     currentTrialDefinition.startingLocationOption = (StartingLocationOption)startingLocationDropdown.value;
-    //     RefreshUIFromData();
-    // }
+    void OnStartingLocationOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].startingLocationOption = (StartingLocationOption)startingLocationDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
+    void OnCuePlacementOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].cuePlacementOption = (CuePlacementOption)cuePlacementDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
+    void OnChestPlacementOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].chestPlacementOption = (ChestPlacementOption)chestPlacementDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
 
-    void OnCuePlacementOptionChanged()
+    void UpdateButtonInteractables() { prevButton.interactable = currentTrialIndex > 0; nextButton.interactable = currentTrialIndex < (GameSettings.allTrials.Length - 1); doneButton.interactable = GameSettings.allTrials != null && GameSettings.allTrials.Length > 0; }
+
+    // Called by MainCircleClickHandler
+    public void OnMainCircleClicked(PointerEventData eventData)
     {
-        currentTrialDefinition.cuePlacementOption = (CuePlacementOption)cuePlacementDropdown.value;
-        RefreshUIFromData();
-    }
-
-    void OnChestPlacementOptionChanged()
-    {
-        currentTrialDefinition.chestPlacementOption = (ChestPlacementOption)chestPlacementDropdown.value;
-        RefreshUIFromData();
-    }
-
-    // ------------------------------------------------------------------
-    // Handling clicks on the circle
-    // ------------------------------------------------------------------
-
-
-    void UpdateButtonInteractables()
-    {
-        // If we’re on the first trial, “Prev” is disabled
-        prevButton.interactable = currentTrialIndex > 0;
-        // If we’re on the last trial, “Next” is disabled
-        nextButton.interactable = currentTrialIndex < (GameSettings.allTrials.Length - 1);
-    }
-
-    // --- Handling the circle UI for selecting starting location ---
-
-    // This method is called when the user clicks on the circle UI element.
-    // (Make sure the startingLocationCircle UI element has an EventTrigger or
-    // is set to use IPointerClickHandler.)
-    public void OnClickCircle(PointerEventData eventData)
-    {
-        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0)
-            return;
-
-        // Only process if the current option is Circle.
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0 || currentTrialIndex >= GameSettings.allTrials.Length) return;
         TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
-        if (td.startingLocationOption != StartingLocationOption.Circle)
-            return;
 
-        // Convert the screen point to a local point within the circle's RectTransform.
-        Vector2 localPoint;
+        Vector2 localPoint; // Point within startingLocationCircle's RectTransform
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(startingLocationCircle, eventData.position, eventData.pressEventCamera, out localPoint))
         {
-            // Assume the circle's pivot is in the center.
-            float circleUISize = startingLocationCircle.rect.width * 0.5f; // radius in UI units
-            // Clamp to the UI circle boundary.
-            if (localPoint.magnitude > circleUISize)
-                localPoint = localPoint.normalized * circleUISize;
+            float uiActualRadius = startingLocationCircle.rect.width * 0.5f; // Actual radius of the UI circle image
+            Vector2 normalizedDirection = localPoint.normalized; // Direction from center to click
 
-            // Map UI local coordinates to experimental coordinates.
-            // The experimental circle has a radius defined by td.circleRadius.
-            float scaleFactor = td.circleRadius / circleUISize;
-            Vector3 customPos = new Vector3(localPoint.x * scaleFactor, 0, localPoint.y * scaleFactor);
-
-            // Save this custom starting position.
-            td.customStartingPosition = customPos;
-
-            // Update a marker in the UI to reflect the chosen point.
-            UpdateMarkerPosition(customPos);
-        }
-    }
-
-    // Updates the marker position on the circle UI to show the selected point.
-    void UpdateMarkerPosition(Vector3 customPos)
-    {
-        if (selectedMarker == null) return;
-
-        // Reverse the mapping: experimental coordinates to UI coordinates.
-        float circleUISize = startingLocationCircle.rect.width * 0.5f;
-        float scaleFactor = circleUISize / GameSettings.allTrials[currentTrialIndex].circleRadius;
-        Vector2 uiPos = new Vector2(customPos.x, customPos.z) * scaleFactor;
-
-        selectedMarker.anchoredPosition = uiPos;
-        selectedMarker.gameObject.SetActive(true);
-    }
-
-    void OnStartingLocationOptionChanged()
-    {
-        // Update the current trial definition from the dropdown.
-        TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
-        td.startingLocationOption = (StartingLocationOption)startingLocationDropdown.value;
-
-        // If the option is Circle, show the circle UI and reset the pointer to the center.
-        if (td.startingLocationOption == StartingLocationOption.Circle)
-        {
-            startingLocationCircle.gameObject.SetActive(true);
-            if (selectedMarker != null)
+            if (td.startingLocationOption == StartingLocationOption.Circle)
             {
-                selectedMarker.anchoredPosition = Vector2.zero; // Reset marker to center
-                selectedMarker.gameObject.SetActive(false);     // Hide until user clicks
+                // Starting location can be anywhere *within* the circle, clamped to edge
+                Vector2 clampedLocalPoint = localPoint;
+                if (localPoint.magnitude > uiActualRadius)
+                {
+                    clampedLocalPoint = normalizedDirection * uiActualRadius;
+                }
+                // Experimental position scales the clamped UI position
+                td.customStartingPosition = new Vector3(clampedLocalPoint.x / uiActualRadius * td.circleRadius, 0, clampedLocalPoint.y / uiActualRadius * td.circleRadius);
+                if (selectedMarker != null)
+                {
+                    selectedMarker.anchoredPosition = clampedLocalPoint; // Position green dot
+                    selectedMarker.gameObject.SetActive(true);
+                }
             }
-            // td.customStartingPosition = Vector3.zero;
-        }
-        else
-        {
-            // Hide the circle UI and marker if any other option is selected.
-            startingLocationCircle.gameObject.SetActive(false);
-            if (selectedMarker != null)
+            else if (td.cuePlacementOption == CuePlacementOption.CircleManual)
             {
-                selectedMarker.gameObject.SetActive(false);
+                PlaceCueOnCircleEdge(normalizedDirection, uiActualRadius, td);
+            }
+            else if (td.chestPlacementOption == ChestPlacementOption.CircleManual)
+            {
+                PlaceTreasureChestOnCircle(localPoint, uiActualRadius, td);
             }
         }
     }
-    public void OnCueCircleClick(BaseEventData data)
+
+    // Helper to position a UI marker (RectTransform) based on world experimental position and radius
+    void PositionMarkerOnUI(RectTransform marker, Vector3 experimentalPosition, float experimentalRadius)
     {
-        PointerEventData ped = (PointerEventData)data;
-        OnClickCuePlacement(ped);
+        if (marker == null || startingLocationCircle == null) return;
+        float uiActualRadius = startingLocationCircle.rect.width * 0.5f;
+        if (experimentalRadius == 0) experimentalRadius = 0.001f; // Avoid div by zero
+
+        // Scale factor: how much smaller/larger the UI representation is compared to experimental
+        float scaleFactorExpToUi = uiActualRadius / experimentalRadius;
+
+        // Position in UI coordinate system (anchoredPosition for the marker)
+        // Assumes marker's pivot is center and it's a child of something aligned with startingLocationCircle
+        marker.anchoredPosition = new Vector2(experimentalPosition.x * scaleFactorExpToUi, experimentalPosition.z * scaleFactorExpToUi);
+        marker.gameObject.SetActive(true);
     }
-    public void OnClickCuePlacement(PointerEventData eventData)
+
+    void PlaceCueOnCircleEdge(Vector2 normalizedDirection, float uiActualRadius, TrialDefinition td)
     {
-        Debug.Log("Clicked circle!");
+        if (td.customCuePositions.Count >= td.numberOfProximalCues) return;
 
-        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0)
-            return;
+        // Compute desired experimental radius: outside the boundary by cueDistanceFromEdge
+        float desiredRadius = Mathf.Max(0f, td.circleRadius + td.cueDistanceFromEdge);
 
-        TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
+        // World/experimental position for this cue along the chosen direction
+        Vector3 worldPos = new Vector3(
+            normalizedDirection.x * desiredRadius,
+            0f,
+            normalizedDirection.y * desiredRadius
+        );
+        td.customCuePositions.Add(worldPos);
 
-        // Convert the screen point to a local point within the circle's RectTransform
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            startingLocationCircle, eventData.position, eventData.pressEventCamera, out Vector2 localPoint))
+        // Place UI marker on the edge of the UI circle regardless of offset
+        if (cueMarkerPrefab != null && cueMarkerContainer != null)
         {
-            float circleUISize = startingLocationCircle.rect.width * 0.25f;
-
-            // Enforce placement *only* on the perimeter (normalize and scale to radius)
-            Vector2 perimeterPoint = localPoint.normalized * circleUISize;
-
-            float scaleFactor = td.circleRadius / circleUISize;
-            Vector3 cueWorldPos = new Vector3(perimeterPoint.x * scaleFactor * 1.2f, 0, perimeterPoint.y * scaleFactor * 1.2f);
-
-            td.customCuePositions.Add(cueWorldPos);
-
-            // Instantiate a marker dot on the UI at that position
             RectTransform newMarker = Instantiate(cueMarkerPrefab, cueMarkerContainer);
-            newMarker.anchoredPosition = perimeterPoint;
+            float edgeScale = Mathf.Clamp01(cueMarkerUiEdgeScale);
+            newMarker.anchoredPosition = normalizedDirection * uiActualRadius * edgeScale;
             newMarker.gameObject.SetActive(true);
+        }
+    }
+
+    void RegenerateCueMarkers(TrialDefinition td)
+    {
+        if (cueMarkerContainer == null) return;
+        for (int i = cueMarkerContainer.childCount - 1; i >= 0; i--) { Destroy(cueMarkerContainer.GetChild(i).gameObject); }
+
+        cueMarkerContainer.gameObject.SetActive(td.cuePlacementOption == CuePlacementOption.CircleManual);
+
+        if (td.cuePlacementOption == CuePlacementOption.CircleManual && cueMarkerPrefab != null)
+        {
+            float desiredRadius = Mathf.Max(0f, td.circleRadius + td.cueDistanceFromEdge);
+
+            for (int i = 0; i < td.customCuePositions.Count; i++)
+            {
+                Vector3 p = td.customCuePositions[i];
+                Vector2 dirXZ = new Vector2(p.x, p.z);
+                if (dirXZ.sqrMagnitude < 1e-6f) continue;
+                Vector2 dir = dirXZ.normalized;
+
+                // Recompute position at the current desired radius
+                Vector3 adjustedWorld = new Vector3(dir.x * desiredRadius, 0f, dir.y * desiredRadius);
+
+                // Update stored position so runtime consumers get correct positions
+                td.customCuePositions[i] = adjustedWorld;
+
+                RectTransform newMarker = Instantiate(cueMarkerPrefab, cueMarkerContainer);
+                // Keep UI marker on scaled circle edge using only direction
+                float uiActualRadius = startingLocationCircle != null ? startingLocationCircle.rect.width * 0.5f : 0f;
+                float edgeScale = Mathf.Clamp01(cueMarkerUiEdgeScale);
+                newMarker.anchoredPosition = dir * uiActualRadius * edgeScale;
+                newMarker.gameObject.SetActive(true);
+            }
         }
     }
 
     public void ClearCueMarkers()
     {
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return;
         TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
         td.customCuePositions.Clear();
-
-        // Loop backwards to avoid issues with modifying collection while iterating
-        for (int i = cueMarkerContainer.childCount - 1; i >= 0; i--)
-        {
-            Destroy(cueMarkerContainer.GetChild(i).gameObject);
-        }
-
-        Debug.Log("Cleared all cue positions.");
+        RegenerateCueMarkers(td);
     }
 
-    void RegenerateCueMarkers()
+    void PlaceTreasureChestOnCircle(Vector2 localPoint, float uiActualRadius, TrialDefinition td)
     {
-        // Clear any existing markers
-        for (int i = cueMarkerContainer.childCount - 1; i >= 0; i--)
+        Vector2 clampedLocalPoint = localPoint;
+        if (localPoint.magnitude > uiActualRadius)
         {
-            Destroy(cueMarkerContainer.GetChild(i).gameObject);
+            clampedLocalPoint = localPoint.normalized * uiActualRadius;
         }
 
-        // Repopulate based on customCuePositions for this trial
+        td.customTreasureChestPosition = new Vector3(
+            clampedLocalPoint.x / uiActualRadius * td.circleRadius,
+            0,
+            clampedLocalPoint.y / uiActualRadius * td.circleRadius
+        );
+
+        RegenerateTreasureChestMarker(td);
+    }
+
+    void RegenerateTreasureChestMarker(TrialDefinition td)
+    {
+        if (chestMarkerInstance != null) { Destroy(chestMarkerInstance); chestMarkerInstance = null; }
+
+        if (td.chestPlacementOption == ChestPlacementOption.CircleManual && td.customTreasureChestPosition != Vector3.zero && chestMarkerPrefab != null)
+        {
+            // Ensure chestMarkerPrefab's parent is appropriate for anchoredPosition.
+            // Often, this is the same parent as startingLocationCircle or startingLocationCircle itself.
+            // For this example, let's assume chestMarkerPrefab should be a child of startingLocationCircle for positioning.
+            // If selectedMarker is child of startingLocationCircle, this is consistent.
+            Transform parentForMarker = startingLocationCircle.transform; // Or another designated container.
+            chestMarkerInstance = Instantiate(chestMarkerPrefab, parentForMarker).gameObject;
+
+            PositionMarkerOnUI(chestMarkerInstance.GetComponent<RectTransform>(), td.customTreasureChestPosition, td.circleRadius);
+            chestMarkerInstance.SetActive(true);
+        }
+    }
+
+    void SaveSettingsToFile()
+    {
+        SaveUIIntoData();
+
+        ExperimentSettingsData data = new ExperimentSettingsData
+        {
+            participantID = GameSettings.participantID,
+            numberOfTrials = GameSettings.numberOfTrials,
+            enableDistalCues = GameSettings.enableDistalCues,
+            allTrials = GameSettings.allTrials
+        };
+
+        string customName = fileNameInput != null ? fileNameInput.text.Trim() : "";
+        string baseName = string.IsNullOrEmpty(customName)
+            ? $"exp_"
+            : customName;
+
+        string path = Path.Combine(Application.persistentDataPath, baseName + ".json");
+        int counter = 1;
+
+        while (File.Exists(path))
+        {
+            path = Path.Combine(Application.persistentDataPath, $"{baseName}_{counter}.json");
+            counter++;
+        }
+
+        File.WriteAllText(path, JsonUtility.ToJson(data, true));
+        Debug.Log("Settings saved to: " + path);
+
+        ShowStatusText($"Saved settings as: {Path.GetFileName(path)}");
+        PopulateSavedFilesDropdown();
+    }
+
+
+    void ShowStatusText(string message)
+    {
+        if (statusText != null)
+        {
+            statusText.text = message;
+            CancelInvoke(nameof(ClearStatusText));
+            Invoke(nameof(ClearStatusText), 3f); // Clear after 3 seconds
+        }
+    }
+
+    void ClearStatusText()
+    {
+        if (statusText != null)
+        {
+            statusText.text = "";
+        }
+    }
+    void PopulateSavedFilesDropdown()
+    {
+        if (savedFilesDropdown == null) return;
+
+        string[] files = Directory.GetFiles(Application.persistentDataPath, "*.json");
+        savedFilesDropdown.ClearOptions();
+        List<string> options = new List<string>();
+
+        foreach (string file in files)
+        {
+            options.Add(Path.GetFileName(file));
+        }
+
+        savedFilesDropdown.AddOptions(options);
+    }
+
+    public void OnLoadFromDropdown()
+    {
+        if (savedFilesDropdown == null || savedFilesDropdown.options.Count == 0) return;
+
+        string selectedFile = savedFilesDropdown.options[savedFilesDropdown.value].text;
+        string path = Path.Combine(Application.persistentDataPath, selectedFile);
+
+        if (!File.Exists(path)) return;
+
+        ExperimentSettingsData data = JsonUtility.FromJson<ExperimentSettingsData>(File.ReadAllText(path));
+        GameSettings.participantID = data.participantID;
+        GameSettings.allTrials = data.allTrials ?? new TrialDefinition[0];
+        GameSettings.numberOfTrials = GameSettings.allTrials.Length;
+        GameSettings.enableDistalCues = data.enableDistalCues;
+        distalCueToggle.isOn = GameSettings.enableDistalCues;
+        currentTrialIndex = 0;
+
+        RefreshUIFromData();
+        UpdateButtonInteractables();
+
+        ShowStatusText($"Loaded settings from: {selectedFile}");
+    }
+
+    void OnNumberOfCuesChanged(string newValue)
+    {
+        if (!int.TryParse(newValue, out int newNum)) return;
+
+        if (GameSettings.allTrials == null || currentTrialIndex >= GameSettings.allTrials.Length)
+            return;
+
+        var td = GameSettings.allTrials[currentTrialIndex];
+        td.numberOfProximalCues = newNum;
+
+        // Clear custom cue positions if using manual cue placement
+        if (td.cuePlacementOption == CuePlacementOption.CircleManual)
+        {
+
+            td.customCuePositions.Clear();
+            RegenerateCueMarkers(td);
+        }
+    }
+
+    void EnforceCueLimit()
+    {
+        if (GameSettings.allTrials == null || currentTrialIndex >= GameSettings.allTrials.Length)
+            return;
+
         TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
-        float circleUISize = startingLocationCircle.rect.width * 0.209f;
-        float scaleFactor = circleUISize / td.circleRadius;
+        int limit = td.numberOfProximalCues;
 
-        foreach (Vector3 cuePos in td.customCuePositions)
+        int selected = 0;
+        foreach (Toggle toggle in cueToggles)
         {
-            Vector2 uiPos = new Vector2(cuePos.x, cuePos.z) * scaleFactor;
-
-            RectTransform newMarker = Instantiate(cueMarkerPrefab, cueMarkerContainer);
-            newMarker.anchoredPosition = uiPos;
-            newMarker.gameObject.SetActive(true);
+            if (toggle.isOn) selected++;
         }
+
+        bool allowMore = selected < limit;
+        foreach (Toggle toggle in cueToggles)
+        {
+            // Disable only if not already selected
+            toggle.interactable = allowMore || toggle.isOn;
+        }
+    }
+
+    void OnCueDistanceChanged(float newVal)
+    {
+        if (GameSettings.allTrials == null || currentTrialIndex >= GameSettings.allTrials.Length) return;
+        var td = GameSettings.allTrials[currentTrialIndex];
+        float clampedVal = Mathf.Clamp(newVal, HardMinCueOffset, HardMaxCueOffset);
+        if (Mathf.Abs(clampedVal - newVal) > 0.0001f && cueDistanceSlider != null)
+        {
+            cueDistanceSlider.SetValueWithoutNotify(clampedVal); // snap handle to valid range
+        }
+        td.cueDistanceFromEdge = clampedVal;
+        UpdateCueDistanceLabel(clampedVal);
+
+        // Rescale existing manual cue positions to the new radius while preserving angles
+        if (td.cuePlacementOption == CuePlacementOption.CircleManual && td.customCuePositions != null)
+        {
+            float desiredRadius = Mathf.Max(0f, td.circleRadius + td.cueDistanceFromEdge);
+            for (int i = 0; i < td.customCuePositions.Count; i++)
+            {
+                Vector3 p = td.customCuePositions[i];
+                Vector2 dirXZ = new Vector2(p.x, p.z);
+                if (dirXZ.sqrMagnitude < 1e-6f) continue;
+                Vector2 dir = dirXZ.normalized;
+                td.customCuePositions[i] = new Vector3(dir.x * desiredRadius, 0f, dir.y * desiredRadius);
+            }
+            RegenerateCueMarkers(td);
+        }
+    }
+
+    void UpdateCueDistanceLabel(float meters)
+    {
+        if (cueDistanceValueText != null)
+            cueDistanceValueText.text = $"Cue offset: {meters:0.0} m";
     }
 
 

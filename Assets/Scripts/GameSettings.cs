@@ -1,7 +1,7 @@
 public static class GameSettings
 {
     // Participant ID or other global info
-    public static int participantID = 0;
+    public static int participantID = 000;
     public static int numberOfTrials = 1;
 
     // “Default” trial fields if you still want them 

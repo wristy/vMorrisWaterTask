@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class PlaceObjectsInCircle : MonoBehaviour
 {
-    public GameObject stonePrefab;  // Assign the stone prefab in the inspector
+    public GameObject stonePrefab;
     public int numberOfStones = 10; // Number of stones to place
     public float radius = 20f;      // Radius of the circle
     public Transform player;        // Reference to the playe
@@ -32,7 +32,7 @@ public class PlaceObjectsInCircle : MonoBehaviour
 
             // Instantiate the stonePrefab at the calculated position and with no rotation
             GameObject stone = Instantiate(stonePrefab, stonePosition, Quaternion.identity);
-            stone.transform.localScale *= size;  // Add this line to scale the stone
+            stone.transform.localScale *= size;
 
             Vector3 directionToCenter = (player.position - stone.transform.position).normalized;
             stone.transform.rotation = Quaternion.LookRotation(-directionToCenter);  // Negative direction to face inward

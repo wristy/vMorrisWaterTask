@@ -97,16 +97,16 @@ public class TreasureChestManager : MonoBehaviour
         if (GameSettings.trialType != GameSettings.TrialType.Absent)
         {
             // Spawn chest in front of the player
-            Vector3 chestViewPosition = playerController.transform.position + playerController.transform.forward * 2 + Vector3.up * 1;
-            treasureChestInstance = Instantiate(treasureChestPrefab, chestViewPosition, Quaternion.Euler(-90, 0, 0));
-            treasureChestInstance.transform.localScale *= 0.5f;
+            Vector3 chestViewPosition = playerController.transform.position + playerController.transform.forward * 5 + Vector3.up * 0.01f;
+            // treasureChestInstance = Instantiate(treasureChestPrefab, chestViewPosition, Quaternion.Euler(0, 0, 0));
+            // treasureChestInstance.transform.localScale *= 5f;
         }
 
         Debug.Log($"Chest found at: {chestPosition}");
 
         // Freeze the player
         // playerController.FreezePlayer();
-
+ 
         // Optional: Provide feedback to the player
         Debug.Log("Chest found!");
     }

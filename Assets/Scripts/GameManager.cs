@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
@@ -17,6 +18,26 @@ public class GameManager : MonoBehaviour
     public GameObject timeUpPanel;
     public TextMeshProUGUI instructionText;
 
+    [Header("End of Experiment UI")]
+    public GameObject experimentCompletePanel;
+    public Button quitButton;
+
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip treasureJingle;
+
+
+    [Header("Coin Effect")]
+    public GameObject coinPrefab;
+
+    [Header("Countdown Circle")]
+    public Image countdownCircle;
+    public GameObject lightBeamPrefab;
+    public Image screenFadeImage;
+    public int numberOfCoins = 20;
+    public float spawnHeight = 10f;
+    public float spawnRadius = 2f;
+
 
     // Trial management
     private int currentTrial = 1;
@@ -27,7 +48,7 @@ public class GameManager : MonoBehaviour
 
     public GameObject trialEndPlatformPrefab; // A small platform prefab with a collider.
     public Light trialEndLight;               // A light that indicates success (initially disabled).
-    public float trialEndDuration = 8f;       // Duration to stay in the trial-end sequence.
+    public float trialEndDuration = 10f;      // Duration to stay in the trial-end sequence.
     public float elevationOffset = 1f;      // How much to raise the player (in Unity units).
     public float platformSafeRadius = 10.0f;   // The safe radius on the platform where the player can roam.
     public static int CurrentTrialIndex => instance.currentTrial - 1;
@@ -37,10 +58,41 @@ public class GameManager : MonoBehaviour
     {
         instance = this;
     }
+    void LogAllCameras()
+    {
+        Camera[] allCams = Camera.allCameras;
+        foreach (var cam in allCams)
+        {
+            Debug.Log($"[CAMERA] Name: {cam.name} | Enabled: {cam.enabled} | Tag: {cam.tag} | Depth: {cam.depth}");
+        }
+    }
+
+    void DisableExtraCameras()
+    {
+        foreach (var cam in Camera.allCameras)
+        {
+            if (cam != Camera.main)
+            {
+                cam.enabled = false;
+                Debug.Log("Disabled extra camera: " + cam.name);
+            }
+        }
+    }
 
 
     void Start()
     {
+
+        DisableExtraCameras();
+        Camera[] allCams = Camera.allCameras;
+        foreach (var cam in allCams)
+        {
+            Debug.Log($"[CAMERA] Name: {cam.name} | Enabled: {cam.enabled} | Tag: {cam.tag} | Depth: {cam.depth}");
+        }
+
+
+
+
         if (treasureChestManager == null || dataCollector == null || playerController == null || cueManager == null)
         {
             Debug.LogError("One or more manager references are missing in the GameManager.");
@@ -51,6 +103,9 @@ public class GameManager : MonoBehaviour
         {
             timeUpPanel.SetActive(false);
         }
+
+        if (experimentCompletePanel != null)
+            experimentCompletePanel.SetActive(false);
 
         // Subscribe to the chest found event
         treasureChestManager.OnChestFound += OnChestFound;
@@ -67,8 +122,16 @@ public class GameManager : MonoBehaviour
         if (currentTrial > GameSettings.numberOfTrials)
         {
             Debug.Log("All trials completed!");
-            // Optional: Trigger end-of-experiment procedures
+
+            // Show end-of-experiment UI
+            if (experimentCompletePanel != null)
+                experimentCompletePanel.SetActive(true);
+
+            // Optionally freeze player
+            playerController.FreezePlayer();
+
             return;
+
         }
 
         trialInProgress = true;
@@ -113,6 +176,13 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
+        // 🔴 QUIT CHECK
+        if (Input.GetKeyDown(KeyCode.Alpha0))
+        {
+            QuitExperiment();
+            return;
+        }
+        
         if (trialInProgress)
         {
             // Increment trial timer
@@ -133,70 +203,138 @@ public class GameManager : MonoBehaviour
 
         trialInProgress = false;
         Debug.Log($"Trial {currentTrial} completed!");
+        if (audioSource != null && treasureJingle != null)
+        {
+            audioSource.PlayOneShot(treasureJingle);
+        }
+
+        // Immediately stop collection and export results to avoid counting the wait period
+        if (dataCollector != null)
+        {
+            dataCollector.StopCollectionAndExport();
+        }
 
         // Freeze the player
+
+        SpawnCoinEffect();
+        SpawnLightBeamEffect();
 
         StartCoroutine(TrialEndSequence());
     }
 
+    void SpawnCoinEffect()
+    {
+        if (coinPrefab == null || playerController == null) return;
+
+        Vector3 playerPos = playerController.transform.position;
+
+        for (int i = 0; i < numberOfCoins; i++)
+        {
+            Vector2 circle = Random.insideUnitCircle * spawnRadius;
+            Vector3 spawnPos = new Vector3(
+                playerPos.x + circle.x,
+                playerPos.y + spawnHeight,
+                playerPos.z + circle.y
+            );
+
+            GameObject coin = Instantiate(coinPrefab, spawnPos, Quaternion.Euler(0, Random.Range(0, 360), 0));
+
+            Rigidbody rb = coin.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.AddTorque(Random.insideUnitSphere * 10f, ForceMode.Impulse);
+            }
+
+            Destroy(coin, 10f); // Clean up after 5 seconds
+        }
+    }
+
+
     IEnumerator TrialEndSequence()
     {
-        // Get the player's current position.
+        bool isLastTrial = currentTrial >= GameSettings.numberOfTrials;
         Vector3 playerPosition = playerController.transform.position;
 
-        // Calculate the platform's spawn position.
         Vector3 platformPosition = new Vector3(playerPosition.x, playerPosition.y - elevationOffset, playerPosition.z);
-
-        // Instantiate the platform prefab.
         GameObject platformInstance = Instantiate(trialEndPlatformPrefab, platformPosition, Quaternion.identity);
 
-        // Raise the player by the elevation offset.
         playerController.transform.position = new Vector3(playerPosition.x, playerPosition.y + elevationOffset, playerPosition.z);
-
-        // Record the fixed position so the player remains stationary.
         Vector3 fixedPosition = playerController.transform.position;
 
-        // Activate the trial-end light and position it above the player.
         trialEndLight.transform.position = new Vector3(playerPosition.x, trialEndLight.transform.position.y, playerPosition.z);
         trialEndLight.gameObject.SetActive(true);
 
-        // Display the instruction text at the same time as the platform.
         if (instructionText != null)
         {
-            instructionText.text = "Good job! Moving on to the next trial...";
+            instructionText.text = isLastTrial
+                ? "Congratulations! You've completed all trials!"
+                : "Good job! Moving on to the next trial...";
+
+            // Enable the parent panel as well, if it exists
+            Transform parent = instructionText.transform.parent;
+            if (parent != null)
+            {
+                parent.gameObject.SetActive(true);
+            }
+
             instructionText.gameObject.SetActive(true);
         }
 
-        // Wait for 6 seconds (trial end duration) while keeping the player fixed.
-        float elapsedTime = 0f;
-        while (elapsedTime < 6f)
+        // ⏱️ Activate and reset circular countdown
+        float countdownDuration = 10f;
+        float countdownTime = countdownDuration;
+
+        if (countdownCircle != null)
         {
-            // Freeze the player's position but allow them to look around.
+            countdownCircle.gameObject.SetActive(true);
+            countdownCircle.fillAmount = 1f;
+        }
+
+        while (countdownTime > 0f)
+        {
+            // Lock player position
             playerController.transform.position = fixedPosition;
-            elapsedTime += Time.deltaTime;
+
+            // Update fill amount (normalized)
+            if (countdownCircle != null)
+            {
+                countdownCircle.fillAmount = countdownTime / countdownDuration;
+            }
+
+            countdownTime -= Time.deltaTime;
             yield return null;
         }
 
-        // Hide the instruction text.
+        if (screenFadeImage != null)
+        {
+            yield return StartCoroutine(FadeScreen(fadeToBlack: true, duration: 1f));
+        }
+
+        // Hide UI
         if (instructionText != null)
         {
             instructionText.gameObject.SetActive(false);
+            Transform parent = instructionText.transform.parent;
+            if (parent != null)
+            {
+                parent.gameObject.SetActive(false);
+            }
         }
 
-        // Turn off the trial-end light.
-        trialEndLight.gameObject.SetActive(false);
+        if (countdownCircle != null)
+            countdownCircle.gameObject.SetActive(false);
 
-        // Remove the platform.
+        trialEndLight.gameObject.SetActive(false);
         Destroy(platformInstance);
 
-        // Export trial data.
-        dataCollector.ExportData();
-        dataCollector.ExportDistanceData();
 
-        // Proceed to the next trial.
+
+        // Exports already performed at chest hit
+
         currentTrial++;
         StartCoroutine(StartNextTrialWithDelay(0.001f));
     }
+
 
 
 
@@ -218,8 +356,11 @@ public class GameManager : MonoBehaviour
         }
 
         // Export data just like the trial ended
-        dataCollector.ExportData();
-        dataCollector.ExportDistanceData();
+        // Immediately stop collection and export at timeout as well
+        if (dataCollector != null)
+        {
+            dataCollector.StopCollectionAndExport();
+        }
 
         // Move on to the next trial after a delay
         currentTrial++;
@@ -272,7 +413,7 @@ public class GameManager : MonoBehaviour
             case StartingLocationOption.Randomize:
                 {
                     // Choose any random point within a circle of radius equal to circleRadius.
-                    Vector2 randomPoint = Random.insideUnitCircle * trialDef.circleRadius;
+                    Vector2 randomPoint = Random.insideUnitCircle * trialDef.circleRadius * 0.9f;
                     return new Vector3(randomPoint.x, 1, randomPoint.y); // Offset of to avoid being underground
                 }
             case StartingLocationOption.Auto:
@@ -285,7 +426,7 @@ public class GameManager : MonoBehaviour
                         Debug.LogWarning("Chest position not available. Choosing random starting position.");
                         float randomAngle = Random.Range(0, 360f);
                         float rad = randomAngle * Mathf.Deg2Rad;
-                        return new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad)) * trialDef.circleRadius;
+                        return new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad)) * trialDef.circleRadius * 0.9f;
                     }
                     else
                     {
@@ -342,6 +483,10 @@ public class GameManager : MonoBehaviour
     {
         // Optional: Show inter-trial interval UI
         // uiManager.ShowInterTrialInterval(currentTrial);
+        if (screenFadeImage != null)
+        {
+            StartCoroutine(FadeScreen(fadeToBlack: false, duration: 1f));
+        }
 
         yield return new WaitForSeconds(delay);
 
@@ -352,5 +497,49 @@ public class GameManager : MonoBehaviour
     {
         // Unsubscribe from events to prevent memory leaks
         treasureChestManager.OnChestFound -= OnChestFound;
+    }
+
+    void SpawnLightBeamEffect()
+    {
+        if (lightBeamPrefab == null || playerController == null) return;
+
+        Vector3 playerPos = playerController.transform.position;
+        Vector3 spawnPos = new Vector3(playerPos.x, playerPos.y, playerPos.z);
+
+        GameObject beam = Instantiate(lightBeamPrefab, spawnPos, Quaternion.identity);
+        beam.transform.SetParent(playerController.transform); // optional: follow player
+        Destroy(beam, 10f); // clean up
+    }
+
+    IEnumerator FadeScreen(bool fadeToBlack, float duration)
+    {
+        float startAlpha = fadeToBlack ? 0f : 1f;
+        float endAlpha = fadeToBlack ? 1f : 0f;
+
+        Color color = screenFadeImage.color;
+        float time = 0f;
+
+        while (time < duration)
+        {
+            float t = time / duration;
+            color.a = Mathf.Lerp(startAlpha, endAlpha, t);
+            screenFadeImage.color = color;
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        // Ensure exact final alpha
+        color.a = endAlpha;
+        screenFadeImage.color = color;
+    }
+
+    public void QuitExperiment()
+    {
+        Debug.Log("Quitting experiment...");
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 }

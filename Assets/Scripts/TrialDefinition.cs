@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+
+
+
 public enum StartingLocationOption
 {
     Randomize,
@@ -24,6 +27,7 @@ public enum ChestPlacementOption
 [System.Serializable]
 public class TrialDefinition
 {
+    public bool[] cueSelections = new bool[8]; // Which cues to enable
     public float circleRadius = 20f;
     public int numberOfProximalCues = 4;
     public GameSettings.TrialType trialType = GameSettings.TrialType.Visible;
@@ -36,6 +40,7 @@ public class TrialDefinition
     // --- Proximal cues ---
     public CuePlacementOption cuePlacementOption = CuePlacementOption.Auto;
     public List<Vector3> customCuePositions = new List<Vector3>();
+    public float cueDistanceFromEdge = 2f;
 
     // --- Treasure chest ---
     public ChestPlacementOption chestPlacementOption = ChestPlacementOption.Randomize;

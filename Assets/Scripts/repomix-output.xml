@@ -1,0 +1,2518 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+<additional_info>
+
+</additional_info>
+
+</file_summary>
+
+<directory_structure>
+BuildConsoleOverlay.cs
+BuildConsoleOverlay.cs.meta
+BuildDebugOverlay.cs
+BuildDebugOverlay.cs.meta
+CircleClickHandler.cs
+CircleClickHandler.cs.meta
+CueManager.cs
+CueManager.cs.meta
+DataCollector.cs
+DataCollector.cs.meta
+DistalCueManager.cs
+DistalCueManager.cs.meta
+EnvironmentManager.cs
+EnvironmentManager.cs.meta
+ExperimentSettingsData.cs
+ExperimentSettingsData.cs.meta
+ExperimentSetupController.cs
+ExperimentSetupController.cs.meta
+GameManager.cs
+GameManager.cs.meta
+GameSettings.cs
+GameSettings.cs.meta
+MainCircleClickHandler.cs
+MainCircleClickHandler.cs.meta
+MenuController.cs
+MenuController.cs.meta
+PlaceObjectsInCircle.cs
+PlaceObjectsInCircle.cs.meta
+PlayerController.cs
+PlayerController.cs.meta
+TreasureChestManager.cs
+TreasureChestManager.cs.meta
+TrialDefinition.cs
+TrialDefinition.cs.meta
+TrialEditorController.cs
+TrialEditorController.cs.meta
+TrialInfo.cs
+TrialInfo.cs.meta
+TrialManager.cs
+TrialManager.cs.meta
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="BuildConsoleOverlay.cs">
+// using UnityEngine;
+// using System.Collections.Generic;
+
+// public class BuildConsoleOverlay : MonoBehaviour
+// {
+//     private static readonly List<string> logMessages = new List<string>();
+//     private Vector2 scrollPosition = Vector2.zero;
+
+//     // Settings
+//     public int maxLines = 100;
+//     public int fontSize = 14;
+//     public Color logColor = Color.white;
+//     public Color warningColor = Color.yellow;
+//     public Color errorColor = Color.red;
+
+//     void OnEnable()
+//     {
+//         Application.logMessageReceived += HandleLog;
+//     }
+
+//     void OnDisable()
+//     {
+//         Application.logMessageReceived -= HandleLog;
+//     }
+
+//     void HandleLog(string logString, string stackTrace, LogType type)
+//     {
+//         string prefix = $"[{type}] ";
+//         string colorHex = type switch
+//         {
+//             LogType.Warning => ColorUtility.ToHtmlStringRGB(warningColor),
+//             LogType.Error or LogType.Exception => ColorUtility.ToHtmlStringRGB(errorColor),
+//             _ => ColorUtility.ToHtmlStringRGB(logColor)
+//         };
+
+//         string formatted = $"<color=#{colorHex}>{prefix}{logString}</color>";
+//         logMessages.Add(formatted);
+
+//         if (logMessages.Count > maxLines)
+//             logMessages.RemoveAt(0);
+//     }
+
+//     void OnGUI()
+//     {
+//         GUI.skin.label.fontSize = fontSize;
+//         GUILayout.BeginArea(new Rect(10, 10, Screen.width - 20, Screen.height / 2));
+//         scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.Width(Screen.width - 20), GUILayout.Height(Screen.height / 2));
+//         foreach (string message in logMessages)
+//         {
+//             GUILayout.Label(message);
+//         }
+//         GUILayout.EndScrollView();
+//         GUILayout.EndArea();
+//     }
+// }
+</file>
+
+<file path="BuildConsoleOverlay.cs.meta">
+fileFormatVersion: 2
+guid: 85d7de781e8ca4f0eac187929a96903e
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="BuildDebugOverlay.cs">
+// using UnityEngine;
+
+// public class BuildDebugOverlay : MonoBehaviour
+// {
+//     private float logUpdateInterval = 1f;
+//     private float nextUpdateTime = 0f;
+
+//     private string debugText = "";
+
+//     void Update()
+//     {
+//         if (Time.time >= nextUpdateTime)
+//         {
+//             UpdateDebugInfo();
+//             nextUpdateTime = Time.time + logUpdateInterval;
+//         }
+//     }
+
+//     void UpdateDebugInfo()
+//     {
+//         debugText = $"[DEBUG INFO]\n" +
+//                     $"Time: {Time.time:F1}s\n" +
+//                     $"allTrials == null: {GameSettings.allTrials == null}\n" +
+//                     $"Trial count: {(GameSettings.allTrials != null ? GameSettings.allTrials.Length.ToString() : "N/A")}\n" +
+//                     $"CurrentTrialIndex: {GameManager.CurrentTrialIndex}\n" +
+//                     $"participantID: {GameSettings.participantID}\n" +
+//                     $"Player position: {GetPlayerPosition()}\n" +
+//                     $"TrialType: {GameSettings.trialType}\n";
+
+//         Camera cam = Camera.main;
+//         if (cam != null)
+//         {
+//             debugText += $"MainCamera pos: {cam.transform.position:F2}\n";
+//             debugText += $"MainCamera parent: {(cam.transform.parent != null ? cam.transform.parent.name : "none")}\n";
+//         }
+//         else
+//         {
+//             debugText += "MainCamera not found!\n";
+//         }
+
+
+//     }
+
+//     string GetPlayerPosition()
+//     {
+//         GameObject player = GameObject.FindWithTag("Player");
+//         if (player != null)
+//         {
+//             return player.transform.position.ToString("F2");
+//         }
+//         return "Not Found";
+//     }
+
+//     void OnGUI()
+//     {
+//         GUI.color = Color.green;
+//         GUI.Label(new Rect(10, 10, 500, 200), debugText);
+//     }
+// }
+</file>
+
+<file path="BuildDebugOverlay.cs.meta">
+fileFormatVersion: 2
+guid: 7c9f913ec49a54fadba3e1950986ca97
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="CircleClickHandler.cs">
+using UnityEngine;
+using UnityEngine.EventSystems;
+
+public class CircleStartingLocationSelector : MonoBehaviour, IPointerClickHandler
+{
+    // Reference to the RectTransform of the circle UI element.
+    public RectTransform startingLocationCircle;
+    // Optional: Reference to a marker (like your green dot) to show the selected point.
+    public RectTransform selectedMarker;
+
+    // The current trial index and the trial definitions should be set up somewhere in your project.
+    // For this example, we'll assume they're available in a static GameSettings or passed in some way.
+    private int currentTrialIndex = 0;
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        Debug.Log("Clicked on the circle!");
+
+        // Only process if the current trial's starting location option is Circle.
+        TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
+
+        // Convert the screen point to a local point within the circle's RectTransform.
+        Vector2 localPoint;
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            startingLocationCircle, eventData.position, eventData.pressEventCamera, out localPoint))
+        {
+            // Assume the circle's pivot is in the center.
+            float circleUISize = startingLocationCircle.rect.width * 0.5f; // radius in UI units
+
+            // Clamp the local point so that it stays within the circle's boundary.
+            if (localPoint.magnitude > circleUISize)
+                localPoint = localPoint.normalized * circleUISize;
+
+            // Map UI local coordinates to experimental coordinates.
+            // The experimental circle has a radius defined by td.circleRadius.
+            float scaleFactor = td.circleRadius / circleUISize;
+            Vector3 customPos = new Vector3(localPoint.x * scaleFactor * 0.7f, 1, localPoint.y * scaleFactor * 0.7f);
+
+            // Save this custom starting position.
+            td.customStartingPosition = customPos;
+
+            // Update a marker in the UI to reflect the chosen point.
+            UpdateMarkerPosition(customPos);
+        }
+    }
+
+    // This method updates the marker (the small green dot) position on the UI.
+    void UpdateMarkerPosition(Vector3 customPos)
+    {
+        if (selectedMarker == null || startingLocationCircle == null)
+            return;
+
+        // Reverse mapping from experimental coordinates back to UI coordinates.
+        float circleUISize = startingLocationCircle.rect.width * 0.5f;
+        float scaleFactor = circleUISize / GameSettings.allTrials[currentTrialIndex].circleRadius;
+        Vector2 uiPos = new Vector2(customPos.x, customPos.z) * scaleFactor;
+
+        // Set the marker's anchored position relative to the circle.
+        selectedMarker.anchoredPosition = uiPos;
+        selectedMarker.gameObject.SetActive(true);
+    }
+}
+</file>
+
+<file path="CircleClickHandler.cs.meta">
+fileFormatVersion: 2
+guid: 402ba7765302e41958939f5902277210
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="CueManager.cs">
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CueManager : MonoBehaviour
+{
+    [Header("Cue References")]
+    [Tooltip("Assign all eight distinct cue GameObjects here.")]
+    public GameObject[] allCues; // Array to hold the eight cues
+    private float radius;
+
+    [Tooltip("Assign a light prefab to illuminate proximal cues.")]
+    public GameObject cueLightPrefab;
+
+    void Start()
+    {
+        // Initialize cues based on the initial number of proximal cues
+        UpdateCues(GameSettings.numberOfProximalCues);
+        radius = GameSettings.circleRadius + 3;
+    }
+
+    /// <summary>
+    /// Updates the active cues based on the specified number, positioning them evenly.
+    /// </summary>
+    /// <param name="numberOfCues">Number of cues to activate and position.</param>
+    public void UpdateCues(int numberOfCues)
+    {
+        TrialDefinition td = GameSettings.allTrials[GameManager.CurrentTrialIndex];
+        bool[] selectedCues = td.cueSelections;
+
+        if (selectedCues == null || selectedCues.Length != allCues.Length)
+        {
+            Debug.LogWarning("Cue selections not initialized correctly.");
+            return;
+        }
+
+        List<int> finalCueIndices = new List<int>();
+
+        // Step 1: Add selected cues first
+        for (int i = 0; i < selectedCues.Length; i++)
+        {
+            if (selectedCues[i])
+            {
+                finalCueIndices.Add(i);
+            }
+        }
+
+        // Step 2: Add fallback cues if fewer than required
+        for (int i = 0; i < selectedCues.Length && finalCueIndices.Count < numberOfCues; i++)
+        {
+            if (!selectedCues[i] && !finalCueIndices.Contains(i))
+            {
+                finalCueIndices.Add(i);
+            }
+        }
+
+        // Step 3: Activate and position only the final selected cues
+        for (int i = 0; i < allCues.Length; i++)
+        {
+            if (finalCueIndices.Contains(i))
+            {
+                int cueIndexInList = finalCueIndices.IndexOf(i);
+                allCues[i].SetActive(true);
+
+                Vector3 cuePosition;
+
+                if (td.customCuePositions != null && cueIndexInList < td.customCuePositions.Count)
+                {
+                    cuePosition = td.customCuePositions[cueIndexInList];
+                }
+                else
+                {
+                    float angle = 360f * cueIndexInList / Mathf.Max(1, numberOfCues);
+                    float rad = angle * Mathf.Deg2Rad;
+                    cuePosition = new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad)) * (td.circleRadius + 3f);
+                }
+
+                allCues[i].transform.position = cuePosition;
+                allCues[i].transform.rotation = Quaternion.LookRotation(-cuePosition.normalized);
+
+                // Handle light
+                if (cueLightPrefab != null && allCues[i].transform.Find("CueLight") == null)
+                {
+                    GameObject cueLight = Instantiate(cueLightPrefab, allCues[i].transform);
+                    cueLight.name = "CueLight";
+                    cueLight.transform.localPosition = new Vector3(0f, 0.1f, 2f);
+                    Vector3 liftedDirection = Vector3.Lerp((Vector3.zero - cueLight.transform.localPosition).normalized, Vector3.up, 0.2f);
+                    cueLight.transform.localRotation = Quaternion.LookRotation(liftedDirection);
+                }
+            }
+            else
+            {
+                allCues[i].SetActive(false);
+                Transform light = allCues[i].transform.Find("CueLight");
+                if (light != null) Destroy(light.gameObject);
+            }
+        }
+    }
+
+
+}
+</file>
+
+<file path="CueManager.cs.meta">
+fileFormatVersion: 2
+guid: 0cb1ee66f23cb46f28777586d3d9349e
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="DataCollector.cs">
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using System.IO;
+
+public class DataCollector : MonoBehaviour
+{
+    private float totalDistance = 0f;
+    private Vector3 lastPosition;
+    private List<string> positionLog;
+    private List<string> enabledColumns;
+    private int numberOfIntersections = 0;
+    private bool success = false;
+    private float totalTimeTaken = 0f;
+    private float timeSinceTrialStart = 0f;
+
+    public GameObject player;
+    public string positionFileNameBase = "PositionData_trial";
+    public string distanceFileNameBase = "DistanceData_trial";
+
+    private float positionLogTimer = 0f;
+
+    private string currentPositionFileName;
+    private string currentDistanceFileName;
+
+    public bool enableTotalDistance = true;
+    public bool enableCoordinates = true;
+    public bool enableSpeed = false;
+
+    private int currentTrialNumber = 0;
+
+    private string expDataDir; // <-- NEW
+
+    void Start()
+    {
+        // Determine correct directory based on platform
+#if UNITY_STANDALONE_OSX
+        string exeFolder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
+#elif UNITY_STANDALONE_WIN
+        string exeFolder = Path.GetDirectoryName(Application.dataPath);
+#else
+        string exeFolder = Application.dataPath; // fallback
+#endif
+        expDataDir = Path.Combine(exeFolder, "ExpData");
+
+        if (!Directory.Exists(expDataDir))
+            Directory.CreateDirectory(expDataDir);
+
+        Debug.Log("Saving experiment data to: " + expDataDir);
+
+        positionLog = new List<string>();
+        enabledColumns = new List<string>();
+
+        SetupEnabledColumns();
+
+        lastPosition = player.transform.position;
+        if (enableCoordinates)
+        {
+            LogPosition(lastPosition);
+        }
+    }
+
+    void Update()
+    {
+        timeSinceTrialStart += Time.deltaTime;
+
+        Vector3 currentPosition = player.transform.position;
+        float distanceThisFrame = Vector3.Distance(lastPosition, currentPosition);
+        totalDistance += distanceThisFrame;
+
+        positionLogTimer += Time.deltaTime;
+        if (enableCoordinates && positionLogTimer >= 0.1f)
+        {
+            LogPosition(currentPosition);
+            positionLogTimer = 0f;
+        }
+
+        lastPosition = currentPosition;
+        totalTimeTaken += Time.deltaTime;
+    }
+
+    void SetupEnabledColumns()
+    {
+        enabledColumns.Add("time");
+        if (enableCoordinates)
+        {
+            enabledColumns.Add("PositionX");
+            enabledColumns.Add("PositionZ");
+        }
+    }
+
+    void LogPosition(Vector3 position)
+    {
+        if (enableCoordinates)
+        {
+            string positionEntry = $"{timeSinceTrialStart:F3},{position.x},{position.z}";
+            positionLog.Add(positionEntry);
+        }
+    }
+
+    public void StartNewTrial(int trialNumber)
+    {
+        timeSinceTrialStart = 0f;
+        totalDistance = 0f;
+        totalTimeTaken = 0f;
+        numberOfIntersections = 0;
+        success = false;
+        positionLog.Clear();
+        positionLogTimer = 0f;
+
+        lastPosition = player.transform.position;
+        if (enableCoordinates)
+        {
+            LogPosition(lastPosition);
+        }
+
+        currentPositionFileName = $"PositionData_{GameSettings.participantID}.csv";
+        currentDistanceFileName = $"DistanceData_{GameSettings.participantID}.csv";
+
+        Debug.Log($"DataCollector initialized for Trial {currentTrialNumber}");
+        currentTrialNumber = trialNumber;
+    }
+
+    public void ExportData()
+    {
+        string fullPath = Path.Combine(expDataDir, currentPositionFileName);
+        bool writeHeader = !File.Exists(fullPath);
+
+        using (StreamWriter writer = new StreamWriter(fullPath, append: true))
+        {
+            if (writeHeader)
+            {
+                writer.WriteLine("trialNumber," + string.Join(",", enabledColumns));
+            }
+
+            foreach (string position in positionLog)
+            {
+                writer.WriteLine($"{currentTrialNumber},{position}");
+            }
+        }
+
+        Debug.Log($"Data saved to: {fullPath}");
+    }
+
+    public void ExportDistanceData()
+    {
+        if (!enableTotalDistance) return;
+
+        string fullPath = Path.Combine(expDataDir, currentDistanceFileName);
+        bool writeHeader = !File.Exists(fullPath);
+
+        using (StreamWriter writer = new StreamWriter(fullPath, append: true))
+        {
+            if (writeHeader)
+            {
+                writer.WriteLine("trialNumber,totalDistance,totalTimeTaken");
+            }
+
+            writer.WriteLine($"{currentTrialNumber},{totalDistance},{totalTimeTaken}");
+        }
+
+        Debug.Log($"Distance data saved to: {fullPath}");
+    }
+}
+</file>
+
+<file path="DataCollector.cs.meta">
+fileFormatVersion: 2
+guid: 96b96031d07614e97a701a79e44d384b
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="DistalCueManager.cs">
+using UnityEngine;
+
+public class DistalCueManager : MonoBehaviour
+{
+    public GameObject distalCueGroup; // OR assign the group if not using tags
+
+    void Start()
+    {
+        SetDistalCuesActive(GameSettings.enableDistalCues);
+    }
+
+    public void SetDistalCuesActive(bool enabled)
+    {
+        if (distalCueGroup != null)
+        {
+            distalCueGroup.SetActive(enabled);
+        }
+        else
+        {
+            Debug.LogWarning("No distal cues found to toggle.");
+        }
+    }
+}
+</file>
+
+<file path="DistalCueManager.cs.meta">
+fileFormatVersion: 2
+guid: 6e54f726a2549454aa560d3e4f78840b
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="EnvironmentManager.cs">
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class EnvironmentManager : MonoBehaviour
+{
+    // Start is called before the first frame update
+    void Start()
+    {
+        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
+</file>
+
+<file path="EnvironmentManager.cs.meta">
+fileFormatVersion: 2
+guid: 8b0ecad56f53d478d96b8a8ac9d336c4
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="ExperimentSettingsData.cs">
+// ExperimentSettingsData.cs
+using UnityEngine; // Required for TrialDefinition which uses Vector3
+
+[System.Serializable]
+public class ExperimentSettingsData
+{
+    public int participantID;
+    public int numberOfTrials;
+    public bool enableDistalCues; // Global setting for distal cues
+    public TrialDefinition[] allTrials;
+
+    // Default constructor for JsonUtility
+    public ExperimentSettingsData() { }
+}
+</file>
+
+<file path="ExperimentSettingsData.cs.meta">
+fileFormatVersion: 2
+guid: ca7340abb08d747d2a60cb4e833f21f4
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="ExperimentSetupController.cs">
+using UnityEngine;
+using TMPro;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using System.IO;
+using System.Collections.Generic;
+
+public class ExperimentSetupController : MonoBehaviour
+{
+    [Header("Mode Toggles")]
+    public Toggle newExperimentToggle;     // “Set up New Experiment”
+    public Toggle runParticipantToggle;    // “Run a Participant”
+
+    [Header("New Experiment UI (shown only when New is selected)")]
+    public TMP_InputField numTrialsInput;  // Number of Trials
+
+    [Header("Run Participant UI (shown only when Run is selected)")]
+    public TMP_InputField participantIdInput;  // Participant ID (Run only)
+    public TMP_Dropdown savedFilesDropdown;    // List *.json from persistentDataPath
+
+    [Header("Buttons")]
+    public Button nextButton;
+    public TMP_Text nextButtonLabel;   // <- assign the label (child TMP_Text of the button)
+
+    [Header("Scene Names")]
+    public string trialEditorSceneName = "TrialEditorScene"; // Configure settings
+    public string runSceneName = "TrialScene";               // Run sequence
+
+    void Start()
+    {
+        // Default to New Experiment
+        if (newExperimentToggle != null) newExperimentToggle.isOn = true;
+        if (runParticipantToggle != null) runParticipantToggle.isOn = false;
+
+        // Wire events
+        if (newExperimentToggle != null) newExperimentToggle.onValueChanged.AddListener(_ => UpdatePanels());
+        if (runParticipantToggle != null) runParticipantToggle.onValueChanged.AddListener(_ => UpdatePanels());
+        if (nextButton != null) nextButton.onClick.AddListener(OnClickNext);
+
+        PopulateSavedFilesDropdown();
+        UpdatePanels();
+    }
+
+    void UpdatePanels()
+    {
+        bool isNew = newExperimentToggle == null || newExperimentToggle.isOn;
+
+        // New Experiment section
+        if (numTrialsInput != null)
+            numTrialsInput.transform.parent.gameObject.SetActive(isNew);
+
+        // Run Participant section
+        bool showRun = !isNew;
+        if (participantIdInput != null)
+            participantIdInput.transform.parent.gameObject.SetActive(showRun);
+        if (savedFilesDropdown != null)
+            savedFilesDropdown.transform.parent.gameObject.SetActive(showRun);
+
+        // Update button label
+        if (nextButtonLabel != null)
+            nextButtonLabel.text = isNew ? "Edit Trials..." : "Run...";
+    }
+
+
+    void PopulateSavedFilesDropdown()
+    {
+        if (savedFilesDropdown == null) return;
+
+        savedFilesDropdown.ClearOptions();
+        var files = Directory.GetFiles(Application.persistentDataPath, "*.json");
+        var options = new List<string>();
+        foreach (var f in files) options.Add(Path.GetFileName(f));
+        if (options.Count == 0) options.Add("(no saved experiments found)");
+        savedFilesDropdown.AddOptions(options);
+        savedFilesDropdown.value = 0;
+        savedFilesDropdown.RefreshShownValue();
+    }
+
+    public void OnClickNext()
+    {
+        bool isNew = newExperimentToggle == null || newExperimentToggle.isOn;
+
+        if (isNew)
+        {
+            // === New Experiment → define #trials and go configure ===
+            if (!int.TryParse(numTrialsInput != null ? numTrialsInput.text : "1", out int nTrials))
+                nTrials = 1;
+
+            GameSettings.numberOfTrials = Mathf.Max(1, nTrials);
+            GameSettings.allTrials = new TrialDefinition[GameSettings.numberOfTrials];
+            for (int i = 0; i < GameSettings.numberOfTrials; i++)
+                GameSettings.allTrials[i] = new TrialDefinition();
+
+            // Seed some defaults for the editor preview if you want
+            if (GameSettings.allTrials.Length > 0)
+            {
+                var first = GameSettings.allTrials[0];
+                GameSettings.circleRadius = first.circleRadius;
+                GameSettings.numberOfProximalCues = first.numberOfProximalCues;
+                GameSettings.trialType = first.trialType;
+                GameSettings.timeLimit = first.timeLimit;
+            }
+
+            SceneManager.LoadScene(trialEditorSceneName);
+        }
+        else
+        {
+            // === Run Participant → set participant ID, load saved experiment, jump to run ===
+            if (!int.TryParse(participantIdInput != null ? participantIdInput.text : "0", out int pid))
+                pid = 0;
+            GameSettings.participantID = pid;
+
+            if (savedFilesDropdown == null || savedFilesDropdown.options.Count == 0)
+            {
+                Debug.LogWarning("No saved file selected.");
+                return;
+            }
+
+            string chosen = savedFilesDropdown.options[savedFilesDropdown.value].text;
+            if (string.IsNullOrEmpty(chosen) || chosen.StartsWith("("))
+            {
+                Debug.LogWarning("No valid saved experiment found.");
+                return;
+            }
+
+            string path = Path.Combine(Application.persistentDataPath, chosen);
+            if (!File.Exists(path))
+            {
+                Debug.LogWarning("Saved experiment file not found: " + path);
+                return;
+            }
+
+            var data = JsonUtility.FromJson<ExperimentSettingsData>(File.ReadAllText(path));
+
+            // Load trials/settings from file
+            GameSettings.allTrials = data.allTrials ?? new TrialDefinition[0];
+            GameSettings.numberOfTrials = GameSettings.allTrials.Length > 0 ? GameSettings.allTrials.Length : 1;
+            GameSettings.enableDistalCues = data.enableDistalCues;
+
+            // Seed global defaults from first trial (for runtime components that consult GameSettings)
+            if (GameSettings.allTrials.Length > 0)
+            {
+                var first = GameSettings.allTrials[0];
+                GameSettings.circleRadius = first.circleRadius;
+                GameSettings.numberOfProximalCues = first.numberOfProximalCues;
+                GameSettings.trialType = first.trialType;
+                GameSettings.timeLimit = first.timeLimit;
+            }
+
+            SceneManager.LoadScene(runSceneName);
+        }
+    }
+}
+</file>
+
+<file path="ExperimentSetupController.cs.meta">
+fileFormatVersion: 2
+guid: 8fa401a6a38034b01b99131ced630969
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="GameManager.cs">
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+using UnityEngine.UI;
+
+public class GameManager : MonoBehaviour
+{
+    // References to other managers
+    [Header("Managers")]
+    public TreasureChestManager treasureChestManager;
+    public DataCollector dataCollector;
+    public PlayerController playerController;
+    public CueManager cueManager;
+    public DistalCueManager distalCueManager;
+
+    [Header("UI Elements")]
+    public GameObject timeUpPanel;
+    public TextMeshProUGUI instructionText;
+
+    [Header("End of Experiment UI")]
+    public GameObject experimentCompletePanel;
+    public Button quitButton;
+
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip treasureJingle;
+
+
+    [Header("Coin Effect")]
+    public GameObject coinPrefab;
+
+    [Header("Countdown Circle")]
+    public Image countdownCircle;
+    public GameObject lightBeamPrefab;
+    public Image screenFadeImage;
+    public int numberOfCoins = 20;
+    public float spawnHeight = 10f;
+    public float spawnRadius = 2f;
+
+
+    // Trial management
+    private int currentTrial = 1;
+    private bool trialInProgress = false;
+
+    private float trialTimer = 0f;
+    private TrialDefinition currentTrialDefinition;
+
+    public GameObject trialEndPlatformPrefab; // A small platform prefab with a collider.
+    public Light trialEndLight;               // A light that indicates success (initially disabled).
+    public float trialEndDuration = 10f;      // Duration to stay in the trial-end sequence.
+    public float elevationOffset = 1f;      // How much to raise the player (in Unity units).
+    public float platformSafeRadius = 10.0f;   // The safe radius on the platform where the player can roam.
+    public static int CurrentTrialIndex => instance.currentTrial - 1;
+    private static GameManager instance;
+
+    void Awake()
+    {
+        instance = this;
+    }
+    void LogAllCameras()
+    {
+        Camera[] allCams = Camera.allCameras;
+        foreach (var cam in allCams)
+        {
+            Debug.Log($"[CAMERA] Name: {cam.name} | Enabled: {cam.enabled} | Tag: {cam.tag} | Depth: {cam.depth}");
+        }
+    }
+
+    void DisableExtraCameras()
+    {
+        foreach (var cam in Camera.allCameras)
+        {
+            if (cam != Camera.main)
+            {
+                cam.enabled = false;
+                Debug.Log("Disabled extra camera: " + cam.name);
+            }
+        }
+    }
+
+
+    void Start()
+    {
+
+        DisableExtraCameras();
+        Camera[] allCams = Camera.allCameras;
+        foreach (var cam in allCams)
+        {
+            Debug.Log($"[CAMERA] Name: {cam.name} | Enabled: {cam.enabled} | Tag: {cam.tag} | Depth: {cam.depth}");
+        }
+
+
+
+
+        if (treasureChestManager == null || dataCollector == null || playerController == null || cueManager == null)
+        {
+            Debug.LogError("One or more manager references are missing in the GameManager.");
+            return;
+        }
+
+        if (timeUpPanel != null)
+        {
+            timeUpPanel.SetActive(false);
+        }
+
+        if (experimentCompletePanel != null)
+            experimentCompletePanel.SetActive(false);
+
+        // Subscribe to the chest found event
+        treasureChestManager.OnChestFound += OnChestFound;
+
+        // Start the first trial
+        StartNextTrial();
+    }
+
+    /// <summary>
+    /// Initiates the next trial.
+    /// </summary>
+    void StartNextTrial()
+    {
+        if (currentTrial > GameSettings.numberOfTrials)
+        {
+            Debug.Log("All trials completed!");
+
+            // Show end-of-experiment UI
+            if (experimentCompletePanel != null)
+                experimentCompletePanel.SetActive(true);
+
+            // Optionally freeze player
+            playerController.FreezePlayer();
+
+            return;
+
+        }
+
+        trialInProgress = true;
+        Debug.Log($"Starting Trial {currentTrial}");
+
+        // Retrieve the current trial definition from the game settings
+        currentTrialDefinition = GameSettings.allTrials[currentTrial - 1];
+
+        GameSettings.circleRadius = currentTrialDefinition.circleRadius;
+        GameSettings.numberOfProximalCues = currentTrialDefinition.numberOfProximalCues;
+        GameSettings.trialType = currentTrialDefinition.trialType;
+        GameSettings.timeLimit = currentTrialDefinition.timeLimit;
+
+        if (distalCueManager != null)
+        {
+            distalCueManager.SetDistalCuesActive(GameSettings.enableDistalCues);
+        }
+
+
+
+        // Reset DataCollector for the new trial
+        dataCollector.StartNewTrial(currentTrial);
+
+
+        // Reset Player Position if needed
+        ResetPlayerPosition();
+
+        // Reset the chest
+        treasureChestManager.ResetChest();
+
+
+        trialTimer = 0f;
+
+        // Unfreeze the player to allow movement
+        playerController.UnfreezePlayer();
+
+        cueManager.UpdateCues(currentTrialDefinition.numberOfProximalCues);
+
+        // Optional: Update UI
+        // uiManager.UpdateTrialDisplay(currentTrial);
+    }
+
+    void Update()
+    {
+        // 🔴 QUIT CHECK
+        if (Input.GetKeyDown(KeyCode.Alpha0))
+        {
+            QuitExperiment();
+            return;
+        }
+        
+        if (trialInProgress)
+        {
+            // Increment trial timer
+            trialTimer += Time.deltaTime;
+
+            // Check if time limit is reached
+            // Check time limit using the current trial's timeLimit setting (if set to a positive value)
+            if (currentTrialDefinition.timeLimit > 0 && trialTimer >= currentTrialDefinition.timeLimit)
+            {
+                OnTrialTimeout();
+            }
+        }
+    }
+    void OnChestFound()
+    {
+        if (!trialInProgress)
+            return;
+
+        trialInProgress = false;
+        Debug.Log($"Trial {currentTrial} completed!");
+        if (audioSource != null && treasureJingle != null)
+        {
+            audioSource.PlayOneShot(treasureJingle);
+        }
+
+        // Freeze the player
+
+        SpawnCoinEffect();
+        SpawnLightBeamEffect();
+
+        StartCoroutine(TrialEndSequence());
+    }
+
+    void SpawnCoinEffect()
+    {
+        if (coinPrefab == null || playerController == null) return;
+
+        Vector3 playerPos = playerController.transform.position;
+
+        for (int i = 0; i < numberOfCoins; i++)
+        {
+            Vector2 circle = Random.insideUnitCircle * spawnRadius;
+            Vector3 spawnPos = new Vector3(
+                playerPos.x + circle.x,
+                playerPos.y + spawnHeight,
+                playerPos.z + circle.y
+            );
+
+            GameObject coin = Instantiate(coinPrefab, spawnPos, Quaternion.Euler(0, Random.Range(0, 360), 0));
+
+            Rigidbody rb = coin.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.AddTorque(Random.insideUnitSphere * 10f, ForceMode.Impulse);
+            }
+
+            Destroy(coin, 10f); // Clean up after 5 seconds
+        }
+    }
+
+
+    IEnumerator TrialEndSequence()
+    {
+        bool isLastTrial = currentTrial >= GameSettings.numberOfTrials;
+        Vector3 playerPosition = playerController.transform.position;
+
+        Vector3 platformPosition = new Vector3(playerPosition.x, playerPosition.y - elevationOffset, playerPosition.z);
+        GameObject platformInstance = Instantiate(trialEndPlatformPrefab, platformPosition, Quaternion.identity);
+
+        playerController.transform.position = new Vector3(playerPosition.x, playerPosition.y + elevationOffset, playerPosition.z);
+        Vector3 fixedPosition = playerController.transform.position;
+
+        trialEndLight.transform.position = new Vector3(playerPosition.x, trialEndLight.transform.position.y, playerPosition.z);
+        trialEndLight.gameObject.SetActive(true);
+
+        if (instructionText != null)
+        {
+            instructionText.text = isLastTrial
+                ? "Congratulations! You've completed all trials!"
+                : "Good job! Moving on to the next trial...";
+
+            // Enable the parent panel as well, if it exists
+            Transform parent = instructionText.transform.parent;
+            if (parent != null)
+            {
+                parent.gameObject.SetActive(true);
+            }
+
+            instructionText.gameObject.SetActive(true);
+        }
+
+        // ⏱️ Activate and reset circular countdown
+        float countdownDuration = 10f;
+        float countdownTime = countdownDuration;
+
+        if (countdownCircle != null)
+        {
+            countdownCircle.gameObject.SetActive(true);
+            countdownCircle.fillAmount = 1f;
+        }
+
+        while (countdownTime > 0f)
+        {
+            // Lock player position
+            playerController.transform.position = fixedPosition;
+
+            // Update fill amount (normalized)
+            if (countdownCircle != null)
+            {
+                countdownCircle.fillAmount = countdownTime / countdownDuration;
+            }
+
+            countdownTime -= Time.deltaTime;
+            yield return null;
+        }
+
+        if (screenFadeImage != null)
+        {
+            yield return StartCoroutine(FadeScreen(fadeToBlack: true, duration: 1f));
+        }
+
+        // Hide UI
+        if (instructionText != null)
+        {
+            instructionText.gameObject.SetActive(false);
+            Transform parent = instructionText.transform.parent;
+            if (parent != null)
+            {
+                parent.gameObject.SetActive(false);
+            }
+        }
+
+        if (countdownCircle != null)
+            countdownCircle.gameObject.SetActive(false);
+
+        trialEndLight.gameObject.SetActive(false);
+        Destroy(platformInstance);
+
+
+
+        dataCollector.ExportData();
+        dataCollector.ExportDistanceData();
+
+        currentTrial++;
+        StartCoroutine(StartNextTrialWithDelay(0.001f));
+    }
+
+
+
+
+    /// <summary>
+    /// Called when the trial timer runs out (timeout).
+    /// </summary>
+    void OnTrialTimeout()
+    {
+        Debug.Log($"Trial {currentTrial} ended due to timeout.");
+        trialInProgress = false;
+
+        // Freeze the player
+        playerController.FreezePlayer();
+
+        // Display "time is up" message (if you have assigned a panel or text)
+        if (timeUpPanel != null)
+        {
+            timeUpPanel.SetActive(true);
+        }
+
+        // Export data just like the trial ended
+        dataCollector.ExportData();
+        dataCollector.ExportDistanceData();
+
+        // Move on to the next trial after a delay
+        currentTrial++;
+        StartCoroutine(StartNextTrialWithDelay(3f)); // Adjust as desired
+    }
+
+
+
+    void ResetPlayerPosition()
+    {
+        // Determine starting position based on the trial definition’s starting location option
+        Vector3 newStartPosition = GetStartingPosition(currentTrialDefinition);
+        playerController.transform.position = newStartPosition;
+
+        // Set rotation based on starting location option
+        if (currentTrialDefinition.startingLocationOption == StartingLocationOption.Auto)
+        {
+            // Use the chest’s position as the reference
+            Vector3 chestPos = treasureChestManager.ChestPosition;
+            Vector3 directionToChest = (chestPos - newStartPosition).normalized;
+
+            // Offset the angle so the player does not face the chest directly.
+            float offsetAngle = 90f; // degrees
+            float sign = Random.value > 0.5f ? 1f : -1f;
+            Vector3 rotatedDirection = Quaternion.Euler(0, offsetAngle * sign, 0) * new Vector3(directionToChest.x, 0, directionToChest.z);
+            playerController.transform.rotation = Quaternion.LookRotation(rotatedDirection);
+        }
+        else
+        {
+            // For Randomize and Circle options, use a default orientation.
+            playerController.transform.rotation = Quaternion.identity;
+        }
+
+        // Reset player's CharacterController if necessary
+        CharacterController controller = playerController.GetComponent<CharacterController>();
+        if (controller != null)
+        {
+            controller.enabled = false;
+            controller.enabled = true;
+        }
+
+        Debug.Log("Player position reset using starting location option: " + currentTrialDefinition.startingLocationOption);
+    }
+
+    // Helper method to determine the starting position based on trial settings.
+    Vector3 GetStartingPosition(TrialDefinition trialDef)
+    {
+        switch (trialDef.startingLocationOption)
+        {
+            case StartingLocationOption.Randomize:
+                {
+                    // Choose any random point within a circle of radius equal to circleRadius.
+                    Vector2 randomPoint = Random.insideUnitCircle * trialDef.circleRadius * 0.9f;
+                    return new Vector3(randomPoint.x, 1, randomPoint.y); // Offset of to avoid being underground
+                }
+            case StartingLocationOption.Auto:
+                {
+                    // For the auto option, avoid the quadrant containing the chest.
+                    Vector3 chestPos = treasureChestManager.ChestPosition;
+                    if (chestPos == Vector3.zero)
+                    {
+                        // Fallback: choose a random angle if the chest position is not available.
+                        Debug.LogWarning("Chest position not available. Choosing random starting position.");
+                        float randomAngle = Random.Range(0, 360f);
+                        float rad = randomAngle * Mathf.Deg2Rad;
+                        return new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad)) * trialDef.circleRadius * 0.9f;
+                    }
+                    else
+                    {
+                        // Determine the quadrant of the chest (using X and Z coordinates)
+                        int chestQuadrant;
+                        if (chestPos.x >= 0 && chestPos.z >= 0)
+                            chestQuadrant = 1;
+                        else if (chestPos.x < 0 && chestPos.z >= 0)
+                            chestQuadrant = 2;
+                        else if (chestPos.x < 0 && chestPos.z < 0)
+                            chestQuadrant = 3;
+                        else
+                            chestQuadrant = 4;
+
+                        // Allowed quadrants are all except the one that contains the chest.
+                        List<int> allowedQuadrants = new List<int> { 1, 2, 3, 4 };
+                        allowedQuadrants.Remove(chestQuadrant);
+
+                        // Randomly choose one of the allowed quadrants.
+                        int chosenQuadrant = allowedQuadrants[Random.Range(0, allowedQuadrants.Count)];
+
+                        // Define quadrant angle ranges:
+                        float angleMin = 0f, angleMax = 0f;
+                        switch (chosenQuadrant)
+                        {
+                            case 1: angleMin = 0f; angleMax = 90f; break;
+                            case 2: angleMin = 90f; angleMax = 180f; break;
+                            case 3: angleMin = 180f; angleMax = 270f; break;
+                            case 4: angleMin = 270f; angleMax = 360f; break;
+                        }
+                        float chosenAngle = Random.Range(angleMin, angleMax);
+                        float rad = chosenAngle * Mathf.Deg2Rad;
+                        Vector3 spawnPosition = new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad)) * (trialDef.circleRadius);
+                        spawnPosition.y = 1f; // Offset to avoid being underground
+                        spawnPosition.x = Mathf.Clamp(spawnPosition.x, -trialDef.circleRadius * 0.7f, trialDef.circleRadius * 0.7f);
+                        spawnPosition.z = Mathf.Clamp(spawnPosition.z, -trialDef.circleRadius * 0.7f, trialDef.circleRadius * 0.7f);
+                        return spawnPosition;
+                    }
+                }
+            case StartingLocationOption.Circle:
+                {
+                    // For the circle option, use a custom starting position if provided;
+                    // otherwise, default to a point on the circle (e.g., at (circleRadius, 0, 0)).
+                    if (trialDef.customStartingPosition != Vector3.zero)
+                        return trialDef.customStartingPosition;
+                    else
+                        return new Vector3(trialDef.circleRadius, 0, 0);
+                }
+            default:
+                return Vector3.zero;
+        }
+    }
+    IEnumerator StartNextTrialWithDelay(float delay)
+    {
+        // Optional: Show inter-trial interval UI
+        // uiManager.ShowInterTrialInterval(currentTrial);
+        if (screenFadeImage != null)
+        {
+            StartCoroutine(FadeScreen(fadeToBlack: false, duration: 1f));
+        }
+
+        yield return new WaitForSeconds(delay);
+
+        StartNextTrial();
+    }
+
+    void OnDestroy()
+    {
+        // Unsubscribe from events to prevent memory leaks
+        treasureChestManager.OnChestFound -= OnChestFound;
+    }
+
+    void SpawnLightBeamEffect()
+    {
+        if (lightBeamPrefab == null || playerController == null) return;
+
+        Vector3 playerPos = playerController.transform.position;
+        Vector3 spawnPos = new Vector3(playerPos.x, playerPos.y, playerPos.z);
+
+        GameObject beam = Instantiate(lightBeamPrefab, spawnPos, Quaternion.identity);
+        beam.transform.SetParent(playerController.transform); // optional: follow player
+        Destroy(beam, 10f); // clean up
+    }
+
+    IEnumerator FadeScreen(bool fadeToBlack, float duration)
+    {
+        float startAlpha = fadeToBlack ? 0f : 1f;
+        float endAlpha = fadeToBlack ? 1f : 0f;
+
+        Color color = screenFadeImage.color;
+        float time = 0f;
+
+        while (time < duration)
+        {
+            float t = time / duration;
+            color.a = Mathf.Lerp(startAlpha, endAlpha, t);
+            screenFadeImage.color = color;
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        // Ensure exact final alpha
+        color.a = endAlpha;
+        screenFadeImage.color = color;
+    }
+
+    public void QuitExperiment()
+    {
+        Debug.Log("Quitting experiment...");
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+}
+</file>
+
+<file path="GameManager.cs.meta">
+fileFormatVersion: 2
+guid: 44b084fcc736347ff966d6e35c61212a
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="GameSettings.cs">
+public static class GameSettings
+{
+    // Participant ID or other global info
+    public static int participantID = 000;
+    public static int numberOfTrials = 1;
+
+    // “Default” trial fields if you still want them 
+    // for quick single‐trial usage:
+    public static float circleRadius = 20f;
+    public static int numberOfProximalCues = 4;
+    public static bool enableDistalCues = true;
+    public static TrialType trialType = TrialType.Visible;
+    public static int timeLimit = 99999;
+
+    public enum TrialType
+    {
+        Visible,
+        Invisible,
+        Absent
+    }
+
+    public static TrialDefinition[] allTrials;
+}
+</file>
+
+<file path="GameSettings.cs.meta">
+fileFormatVersion: 2
+guid: 567e2756078334e7ab27e75273673807
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="MainCircleClickHandler.cs">
+// Create this new script: MainCircleClickHandler.cs
+using UnityEngine;
+using UnityEngine.EventSystems; // Required for event system interfaces
+
+public class MainCircleClickHandler : MonoBehaviour, IPointerClickHandler
+{
+    // Reference to your TrialEditorController.
+    // You can assign this in the Inspector or find it dynamically.
+    public TrialEditorController trialEditorController;
+
+    void Start()
+    {
+        Debug.Log("MainCircleClickHandler started", this.gameObject);
+        // If not assigned in Inspector, try to find it.
+        // This assumes TrialEditorController is on a known GameObject or is unique.
+        if (trialEditorController == null)
+        {
+            trialEditorController = FindObjectOfType<TrialEditorController>();
+            if (trialEditorController == null)
+            {
+                Debug.LogError("MainCircleClickHandler could not find TrialEditorController!", this.gameObject);
+            }
+
+        }
+        Debug.Log("MainCircleClickHandler found TrialEditorController: " + trialEditorController, this.gameObject);
+    }
+
+    // This method will be called when the UI element this script is attached to is clicked.
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (trialEditorController != null)
+        {
+            // Call the method on your TrialEditorController, passing the eventData
+            trialEditorController.OnMainCircleClicked(eventData);
+        }
+        else
+        {
+            Debug.LogError("TrialEditorController reference is not set in MainCircleClickHandler.", this.gameObject);
+        }
+    }
+}
+</file>
+
+<file path="MainCircleClickHandler.cs.meta">
+fileFormatVersion: 2
+guid: 0b3831d7edecc4b9c9126f48e9585432
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="MenuController.cs">
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+
+public class MenuController : MonoBehaviour
+{
+    public TMP_InputField radiusInputField;
+    public TMP_InputField numberOfTrialsInputField;
+    public TMP_InputField numberOfProximalCuesInputField;
+    public TMP_InputField participantIDInputField;
+    public TMP_Dropdown trialTypeDropdown;
+    public TMP_InputField timeLimitInputField;
+    public string simulationSceneName = "TrialScene";
+
+
+    public void Start()
+    {
+        numberOfProximalCuesInputField.text = GameSettings.numberOfProximalCues.ToString();
+    }
+
+    public void StartSimulation()
+    {
+
+        // Load the simulation scene
+        SceneManager.LoadScene(simulationSceneName);
+    }
+}
+</file>
+
+<file path="MenuController.cs.meta">
+fileFormatVersion: 2
+guid: 79ed3e85b226840ada3c5db6b6fd866c
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="PlaceObjectsInCircle.cs">
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class PlaceObjectsInCircle : MonoBehaviour
+{
+    public GameObject stonePrefab;
+    public int numberOfStones = 10; // Number of stones to place
+    public float radius = 20f;      // Radius of the circle
+    public Transform player;        // Reference to the playe
+    public float size = 1f;
+
+    void Start()
+    {
+        radius = GameSettings.circleRadius;
+        PlaceStonesAroundPlayer();
+    }
+
+    void PlaceStonesAroundPlayer()
+    {
+        for (int i = 0; i < numberOfStones; i++)
+        {
+            // Calculate the angle for this stone
+            float angle = i * Mathf.PI * 2 / numberOfStones;
+
+            // Calculate the position on the circle
+            float x = Mathf.Cos(angle) * radius;
+            float z = Mathf.Sin(angle) * radius;
+
+            // Create the stone at the calculated position relative to the player
+            Vector3 stonePosition = new Vector3(x, - player.position.y, z) + player.position;
+
+            // Instantiate the stonePrefab at the calculated position and with no rotation
+            GameObject stone = Instantiate(stonePrefab, stonePosition, Quaternion.identity);
+            stone.transform.localScale *= size;
+
+            Vector3 directionToCenter = (player.position - stone.transform.position).normalized;
+            stone.transform.rotation = Quaternion.LookRotation(-directionToCenter);  // Negative direction to face inward
+
+
+            if (stone.GetComponent<Collider>() == null)
+            {
+                BoxCollider collider = stone.AddComponent<BoxCollider>();  // Adding a BoxCollider if it doesn't already exist
+                collider.size = new Vector3(1.5f, 5f, 1.5f);
+            }
+        }
+    }
+}
+</file>
+
+<file path="PlaceObjectsInCircle.cs.meta">
+fileFormatVersion: 2
+guid: 70de9562561d84a62b2f3e1ddd620685
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="PlayerController.cs">
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class PlayerController : MonoBehaviour
+{
+    public float moveSpeed = 5.0f;   // Movement speed of the player
+    public float turnSpeed = 100.0f;
+    public float gravity = -9.81f;
+
+    // References to components
+    private CharacterController controller;  // Player's CharacterController
+    private Transform cameraTransform;       // Camera for mouse look
+    private bool isFrozen = false; 
+
+    void Start()
+    {
+        controller = GetComponent<CharacterController>();
+        cameraTransform = Camera.main.transform;
+    }
+
+    void Update()
+    {
+        if (!isFrozen)
+        {
+            HandleLook();
+            HandleMovement();
+            HandleGravity();
+        }
+    }
+
+    void HandleLook()
+    {
+        // Get input from A/D or left/right arrow keys for rotation
+        float rotateInput = Input.GetAxis("Horizontal"); // A/D or Left/Right arrows
+
+        // Rotate the player around the Y-axis (left and right)
+        transform.Rotate(Vector3.up, rotateInput * turnSpeed * Time.deltaTime);
+    }
+
+    void HandleMovement()
+    {
+        // Get input from W or up arrow key to move forward
+        float moveForward = Input.GetAxis("Vertical"); // W or Up arrow
+
+        if (moveForward > 0) // Only move forward, not backward
+        {
+            // Move the player forward based on its current rotation (Z axis)
+            Vector3 move = transform.forward * moveForward;
+
+            // Apply movement using the CharacterController
+            controller.Move(move * moveSpeed * Time.deltaTime);
+        }
+    }
+
+    void HandleGravity()
+    {
+        gravity -= 9.81f * Time.deltaTime;
+        controller.Move( new Vector3(0, gravity, 0) );
+        if ( controller.isGrounded ) gravity = 0;
+    }
+
+    public void FreezePlayer()
+    {
+        isFrozen = true;
+    }
+    public void UnfreezePlayer()
+    {
+        isFrozen = false;
+    }
+
+}
+</file>
+
+<file path="PlayerController.cs.meta">
+fileFormatVersion: 2
+guid: 5cdc7b82fc1654f6ebcfec39977edff7
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="TreasureChestManager.cs">
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+public class TreasureChestManager : MonoBehaviour
+{
+    // Chest parameters
+    [Header("Chest Settings")]
+    public GameObject treasureChestPrefab;         // Reference to the chest prefab
+    public float chestDetectionDistance = 2.0f;   // Distance at which the chest is "found"
+
+    // Player reference
+    [Header("Player Settings")]
+    public PlayerController playerController;      // Reference to the PlayerController script
+
+    // Private variables
+    private Vector3 chestPosition;                 // Position where the chest will appear
+    private bool chestFound = false;               // Flag to check if the chest has been found
+
+    public event Action OnChestFound;
+
+    public GameObject chestMarkerPrefab; // Assign via Inspector
+    private GameObject chestMarkerInstance;
+    private GameObject treasureChestInstance;
+
+    public Vector3 ChestPosition
+    {
+        get { return chestPosition; }
+    }
+
+
+    void Start()
+    {
+        // Generate a random direction within a circle on the horizontal plane
+        Vector2 randomDirection = UnityEngine.Random.insideUnitCircle * (GameSettings.circleRadius - 2);
+        Vector3 spawnPosition = new Vector3(randomDirection.x, 0, randomDirection.y) + playerController.transform.position;
+
+        chestPosition = new Vector3(spawnPosition.x, 0, spawnPosition.z);
+
+        // make sure the chest is not too close to the player
+        if (Vector3.Distance(chestPosition, playerController.transform.position) < 2f)
+        {
+            chestPosition += new Vector3(2, 0, 0);
+        }
+
+        SpawnChestPosition();
+    }
+
+    void Update()
+    {
+        if (!chestFound)
+        {
+            CheckChestProximity();
+        }
+    }
+
+    void SpawnChestPosition()
+    {
+
+
+        Debug.Log($"Chest spawned at: {chestPosition}");
+
+        // Handle marker visibility based on trial type
+        if (GameSettings.trialType == GameSettings.TrialType.Visible)
+        {
+            if (chestMarkerPrefab != null)
+            {
+                chestMarkerInstance = Instantiate(chestMarkerPrefab, chestPosition, Quaternion.identity);
+            }
+        }
+        else if (GameSettings.trialType == GameSettings.TrialType.Invisible)
+        {
+            if (chestMarkerPrefab != null)
+            {
+                chestMarkerInstance = Instantiate(chestMarkerPrefab, chestPosition, Quaternion.identity);
+                chestMarkerInstance.SetActive(false); // Marker is invisible
+            }
+        }
+    }
+    void CheckChestProximity()
+    {
+        float distance = Vector3.Distance(playerController.transform.position, chestPosition);
+        if (distance <= chestDetectionDistance && GameSettings.trialType != GameSettings.TrialType.Absent)
+        {
+            FindChest();
+        }
+    }
+
+    void FindChest()
+    {
+        chestFound = true;
+
+        // Notify subscribers that the chest has been found
+        OnChestFound?.Invoke();
+
+        // Spawn the chest if the trial type is not Absent
+        if (GameSettings.trialType != GameSettings.TrialType.Absent)
+        {
+            // Spawn chest in front of the player
+            Vector3 chestViewPosition = playerController.transform.position + playerController.transform.forward * 5 + Vector3.up * 0.01f;
+            // treasureChestInstance = Instantiate(treasureChestPrefab, chestViewPosition, Quaternion.Euler(0, 0, 0));
+            // treasureChestInstance.transform.localScale *= 5f;
+        }
+
+        Debug.Log($"Chest found at: {chestPosition}");
+
+        // Freeze the player
+        // playerController.FreezePlayer();
+ 
+        // Optional: Provide feedback to the player
+        Debug.Log("Chest found!");
+    }
+
+    public void ResetChest()
+    {
+        chestFound = false;
+
+        // Destroy existing chest and marker instances to prevent duplicates
+        if (treasureChestInstance != null)
+        {
+            Destroy(treasureChestInstance);
+        }
+
+        if (chestMarkerInstance != null)
+        {
+            Destroy(chestMarkerInstance);
+        }
+
+        // Only spawn chest position if the trial type is not Absent
+        if (GameSettings.trialType != GameSettings.TrialType.Absent)
+        {
+            SpawnChestPosition();
+        }
+
+        // Optional: Provide feedback
+        Debug.Log("Chest reset for the next trial.");
+    }
+}
+</file>
+
+<file path="TreasureChestManager.cs.meta">
+fileFormatVersion: 2
+guid: 9579dcb4eaebf4a1c8431c5195274e45
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="TrialDefinition.cs">
+using UnityEngine;
+using System.Collections.Generic;
+
+
+
+
+public enum StartingLocationOption
+{
+    Randomize,
+    Auto,   // Automatically choose a location with restrictions
+    Circle  // Choose a location on a circle
+}
+
+public enum CuePlacementOption
+{
+    Auto,         // evenly spaced, or from code
+    CircleManual // user picks positions on circle
+}
+
+public enum ChestPlacementOption
+{
+    Randomize,
+    CircleManual
+}
+
+
+[System.Serializable]
+public class TrialDefinition
+{
+    public bool[] cueSelections = new bool[8]; // Which cues to enable
+    public float circleRadius = 20f;
+    public int numberOfProximalCues = 4;
+    public GameSettings.TrialType trialType = GameSettings.TrialType.Visible;
+    public int timeLimit = -999;
+
+    // --- Starting location ---
+    public StartingLocationOption startingLocationOption = StartingLocationOption.Randomize;
+    public Vector3 customStartingPosition;
+
+    // --- Proximal cues ---
+    public CuePlacementOption cuePlacementOption = CuePlacementOption.Auto;
+    public List<Vector3> customCuePositions = new List<Vector3>();
+
+    // --- Treasure chest ---
+    public ChestPlacementOption chestPlacementOption = ChestPlacementOption.Randomize;
+    public Vector3 customTreasureChestPosition;
+}
+</file>
+
+<file path="TrialDefinition.cs.meta">
+fileFormatVersion: 2
+guid: 5b62a99de49b445779f598f45cb6dd8f
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="TrialEditorController.cs">
+using UnityEngine;
+using TMPro;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
+using System.Collections.Generic;
+using System.IO;
+using System.Collections;
+
+public class TrialEditorController : MonoBehaviour
+{
+    [Header("UI References")]
+    public TMP_Text trialLabel;
+    public TMP_InputField radiusInput;
+    public TMP_InputField cuesInput;
+    public TMP_InputField timeLimitInput;
+    public TMP_Dropdown trialTypeDropdown;
+    public Button saveButton;
+    public Button loadButton;
+    public TMP_InputField fileNameInput;
+
+
+    public TMP_Text statusText;
+
+    public TMP_Dropdown savedFilesDropdown; // assign via Inspector
+
+
+    public TMP_Dropdown startingLocationDropdown;
+    public TMP_Dropdown cuePlacementDropdown;
+    public TMP_Dropdown chestPlacementDropdown;
+    public Toggle distalCueToggle;
+
+    public RectTransform cueMarkerContainer; // Parent for blue cue markers
+
+    public RectTransform startingLocationCircle; // The main clickable black circle
+    public RectTransform selectedMarker;      // Green dot for start (ensure assigned)
+    public RectTransform cueMarkerPrefab;     // Blue dot for cues (ensure assigned)
+    public RectTransform chestMarkerPrefab;   // Gold dot for chest (ensure assigned)
+    private GameObject chestMarkerInstance; // UI instance for the gold treasure marker
+
+    public Button prevButton;
+    public Button nextButton;
+    public Button doneButton;
+    public Button copyToAllButton;
+    public Toggle[] cueToggles; // Assign 8 toggles in the Inspector
+
+
+    public string nextSceneName = "TrialScene";
+    private int currentTrialIndex = 0;
+
+    void Start()
+    {
+        // Ensure all marker prefabs are actually assigned
+        if (selectedMarker == null) Debug.LogError("SelectedMarker (Green Dot) is not assigned in Inspector!");
+        if (cueMarkerPrefab == null) Debug.LogError("CueMarkerPrefab (Blue Dot) is not assigned in Inspector!");
+        if (chestMarkerPrefab == null) Debug.LogError("ChestMarkerPrefab (Gold Dot) is not assigned in Inspector!");
+        if (startingLocationCircle == null) Debug.LogError("StartingLocationCircle is not assigned!");
+        if (cueMarkerContainer == null) Debug.LogError("CueMarkerContainer is not assigned!");
+
+
+        RefreshUIFromData();
+        UpdateButtonInteractables();
+
+        prevButton.onClick.AddListener(OnClickPrev);
+        nextButton.onClick.AddListener(OnClickNext);
+        doneButton.onClick.AddListener(OnClickDone);
+        copyToAllButton.onClick.AddListener(OnCopyToAll);
+        saveButton.onClick.AddListener(SaveSettingsToFile);
+        loadButton.onClick.AddListener(OnLoadFromDropdown);
+        cuesInput.onEndEdit.AddListener(OnNumberOfCuesChanged);
+
+
+        distalCueToggle.isOn = GameSettings.enableDistalCues;
+
+        startingLocationDropdown.onValueChanged.AddListener((_) => OnStartingLocationOptionChanged());
+        cuePlacementDropdown.onValueChanged.AddListener((_) => OnCuePlacementOptionChanged());
+        chestPlacementDropdown.onValueChanged.AddListener((_) => OnChestPlacementOptionChanged());
+
+        PopulateSavedFilesDropdown();
+
+        foreach (Toggle toggle in cueToggles)
+        {
+            toggle.onValueChanged.AddListener(delegate { EnforceCueLimit(); });
+        }
+    }
+
+    public void OnClickPrev() { SaveUIIntoData(); currentTrialIndex--; RefreshUIFromData(); UpdateButtonInteractables(); }
+    public void OnClickNext() { SaveUIIntoData(); currentTrialIndex++; RefreshUIFromData(); UpdateButtonInteractables(); }
+    public void OnClickDone()
+    {
+        SaveUIIntoData();
+        if (GameSettings.allTrials != null && GameSettings.allTrials.Length > 0)
+        {
+            TrialDefinition firstTrial = GameSettings.allTrials[0];
+            GameSettings.circleRadius = firstTrial.circleRadius;
+            GameSettings.numberOfProximalCues = firstTrial.numberOfProximalCues;
+            GameSettings.trialType = firstTrial.trialType;
+            GameSettings.timeLimit = firstTrial.timeLimit;
+        }
+        GameSettings.enableDistalCues = distalCueToggle.isOn;
+        SceneManager.LoadScene(nextSceneName);
+    }
+    void OnCopyToAll()
+    {
+        SaveUIIntoData();
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0 || currentTrialIndex >= GameSettings.allTrials.Length) return;
+        TrialDefinition currentSettings = GameSettings.allTrials[currentTrialIndex];
+        for (int i = 0; i < GameSettings.allTrials.Length; i++)
+        {
+            if (i == currentTrialIndex) continue;
+            GameSettings.allTrials[i] = new TrialDefinition // Create a new instance or deep copy
+            {
+                circleRadius = currentSettings.circleRadius,
+                numberOfProximalCues = currentSettings.numberOfProximalCues,
+                trialType = currentSettings.trialType,
+                timeLimit = currentSettings.timeLimit,
+                startingLocationOption = currentSettings.startingLocationOption,
+                customStartingPosition = currentSettings.customStartingPosition,
+                cuePlacementOption = currentSettings.cuePlacementOption,
+                customCuePositions = new List<Vector3>(currentSettings.customCuePositions),
+                chestPlacementOption = currentSettings.chestPlacementOption,
+                customTreasureChestPosition = currentSettings.customTreasureChestPosition,
+                cueSelections = (bool[])currentSettings.cueSelections.Clone()
+            };
+        }
+        RefreshUIFromData();
+    }
+
+    void RefreshUIFromData()
+    {
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0 || currentTrialIndex >= GameSettings.allTrials.Length)
+        {
+            // Consider disabling UI or showing an error
+            Debug.LogWarning("RefreshUIFromData: Trial data invalid or index out of bounds.");
+            return;
+        }
+        TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
+        trialLabel.text = $"Trial {currentTrialIndex + 1} of {GameSettings.allTrials.Length}";
+        radiusInput.text = td.circleRadius.ToString();
+        cuesInput.text = td.numberOfProximalCues.ToString();
+        timeLimitInput.text = td.timeLimit.ToString();
+        trialTypeDropdown.value = (int)td.trialType;
+        startingLocationDropdown.value = (int)td.startingLocationOption;
+        cuePlacementDropdown.value = (int)td.cuePlacementOption;
+        chestPlacementDropdown.value = (int)td.chestPlacementOption;
+        distalCueToggle.isOn = GameSettings.enableDistalCues;
+
+        for (int i = 0; i < cueToggles.Length; i++)
+        {
+            if (i < td.cueSelections.Length)
+                cueToggles[i].isOn = td.cueSelections[i];
+        }
+
+
+        UpdateUIVisibilityAndMarkers(td);
+        EnforceCueLimit();
+    }
+
+    void UpdateUIVisibilityAndMarkers(TrialDefinition td)
+    {
+        bool showMainCircle = td.startingLocationOption == StartingLocationOption.Circle ||
+                              td.cuePlacementOption == CuePlacementOption.CircleManual ||
+                              td.chestPlacementOption == ChestPlacementOption.CircleManual;
+        if (startingLocationCircle != null) startingLocationCircle.gameObject.SetActive(showMainCircle);
+
+        // Starting Location Marker (Green)
+        if (selectedMarker != null)
+        {
+            if (td.startingLocationOption == StartingLocationOption.Circle && td.customStartingPosition.magnitude > 0.001f)
+
+            {
+                PositionMarkerOnUI(selectedMarker, td.customStartingPosition, td.circleRadius);
+                selectedMarker.gameObject.SetActive(true);
+            }
+            else
+            {
+                selectedMarker.gameObject.SetActive(false);
+            }
+        }
+
+        // Cue Markers (Blue)
+        RegenerateCueMarkers(td);
+
+        // Treasure Marker (Gold)
+        RegenerateTreasureChestMarker(td);
+    }
+
+    void SaveUIIntoData()
+    {
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0 || currentTrialIndex >= GameSettings.allTrials.Length) return;
+        TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
+        if (float.TryParse(radiusInput.text, out float rad)) td.circleRadius = rad;
+        if (int.TryParse(cuesInput.text, out int nCues)) td.numberOfProximalCues = nCues;
+        if (int.TryParse(timeLimitInput.text, out int time)) td.timeLimit = time;
+        td.trialType = (GameSettings.TrialType)trialTypeDropdown.value;
+        td.startingLocationOption = (StartingLocationOption)startingLocationDropdown.value;
+        td.cuePlacementOption = (CuePlacementOption)cuePlacementDropdown.value;
+        td.chestPlacementOption = (ChestPlacementOption)chestPlacementDropdown.value;
+        GameSettings.enableDistalCues = distalCueToggle.isOn;
+
+        for (int i = 0; i < cueToggles.Length && i < td.cueSelections.Length; i++)
+        {
+            td.cueSelections[i] = cueToggles[i].isOn;
+        }
+    }
+
+    void OnStartingLocationOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].startingLocationOption = (StartingLocationOption)startingLocationDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
+    void OnCuePlacementOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].cuePlacementOption = (CuePlacementOption)cuePlacementDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
+    void OnChestPlacementOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].chestPlacementOption = (ChestPlacementOption)chestPlacementDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
+
+    void UpdateButtonInteractables() { prevButton.interactable = currentTrialIndex > 0; nextButton.interactable = currentTrialIndex < (GameSettings.allTrials.Length - 1); doneButton.interactable = GameSettings.allTrials != null && GameSettings.allTrials.Length > 0; }
+
+    // Called by MainCircleClickHandler
+    public void OnMainCircleClicked(PointerEventData eventData)
+    {
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length == 0 || currentTrialIndex >= GameSettings.allTrials.Length) return;
+        TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
+
+        Vector2 localPoint; // Point within startingLocationCircle's RectTransform
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(startingLocationCircle, eventData.position, eventData.pressEventCamera, out localPoint))
+        {
+            float uiActualRadius = startingLocationCircle.rect.width * 0.5f; // Actual radius of the UI circle image
+            Vector2 normalizedDirection = localPoint.normalized; // Direction from center to click
+
+            if (td.startingLocationOption == StartingLocationOption.Circle)
+            {
+                // Starting location can be anywhere *within* the circle, clamped to edge
+                Vector2 clampedLocalPoint = localPoint;
+                if (localPoint.magnitude > uiActualRadius)
+                {
+                    clampedLocalPoint = normalizedDirection * uiActualRadius;
+                }
+                // Experimental position scales the clamped UI position
+                td.customStartingPosition = new Vector3(clampedLocalPoint.x / uiActualRadius * td.circleRadius, 0, clampedLocalPoint.y / uiActualRadius * td.circleRadius);
+                if (selectedMarker != null)
+                {
+                    selectedMarker.anchoredPosition = clampedLocalPoint; // Position green dot
+                    selectedMarker.gameObject.SetActive(true);
+                }
+            }
+            else if (td.cuePlacementOption == CuePlacementOption.CircleManual)
+            {
+                PlaceCueOnCircleEdge(normalizedDirection, uiActualRadius, td);
+            }
+            else if (td.chestPlacementOption == ChestPlacementOption.CircleManual)
+            {
+                PlaceTreasureChestOnCircle(localPoint, uiActualRadius, td);
+            }
+        }
+    }
+
+    // Helper to position a UI marker (RectTransform) based on world experimental position and radius
+    void PositionMarkerOnUI(RectTransform marker, Vector3 experimentalPosition, float experimentalRadius)
+    {
+        if (marker == null || startingLocationCircle == null) return;
+        float uiActualRadius = startingLocationCircle.rect.width * 0.5f;
+        if (experimentalRadius == 0) experimentalRadius = 0.001f; // Avoid div by zero
+
+        // Scale factor: how much smaller/larger the UI representation is compared to experimental
+        float scaleFactorExpToUi = uiActualRadius / experimentalRadius;
+
+        // Position in UI coordinate system (anchoredPosition for the marker)
+        // Assumes marker's pivot is center and it's a child of something aligned with startingLocationCircle
+        marker.anchoredPosition = new Vector2(experimentalPosition.x * scaleFactorExpToUi, experimentalPosition.z * scaleFactorExpToUi);
+        marker.gameObject.SetActive(true);
+    }
+
+    void PlaceCueOnCircleEdge(Vector2 normalizedDirection, float uiActualRadius, TrialDefinition td)
+    {
+        if (td.customCuePositions.Count >= td.numberOfProximalCues) return;
+
+        float outwardScale = 0.55f; // You can tweak this
+        Vector2 cueMarkerUiPos = normalizedDirection * uiActualRadius * outwardScale;
+
+        td.customCuePositions.Add(new Vector3(
+    normalizedDirection.x * td.circleRadius * 1.1f,
+    0,
+    normalizedDirection.y * td.circleRadius * 1.1f
+));
+        if (cueMarkerPrefab != null && cueMarkerContainer != null)
+        {
+            RectTransform newMarker = Instantiate(cueMarkerPrefab, cueMarkerContainer);
+            newMarker.anchoredPosition = cueMarkerUiPos;
+            newMarker.gameObject.SetActive(true);
+        }
+    }
+
+    void RegenerateCueMarkers(TrialDefinition td)
+    {
+        if (cueMarkerContainer == null) return;
+        for (int i = cueMarkerContainer.childCount - 1; i >= 0; i--) { Destroy(cueMarkerContainer.GetChild(i).gameObject); }
+
+        cueMarkerContainer.gameObject.SetActive(td.cuePlacementOption == CuePlacementOption.CircleManual);
+
+        if (td.cuePlacementOption == CuePlacementOption.CircleManual && cueMarkerPrefab != null)
+        {
+            foreach (Vector3 cuePosWorld in td.customCuePositions)
+            {
+                RectTransform newMarker = Instantiate(cueMarkerPrefab, cueMarkerContainer);
+                PositionMarkerOnUI(newMarker, cuePosWorld, td.circleRadius * 2f); // Use helper
+                newMarker.gameObject.SetActive(true);
+            }
+        }
+    }
+
+    public void ClearCueMarkers()
+    {
+        if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return;
+        TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
+        td.customCuePositions.Clear();
+        RegenerateCueMarkers(td);
+    }
+
+    void PlaceTreasureChestOnCircle(Vector2 localPoint, float uiActualRadius, TrialDefinition td)
+    {
+        Vector2 clampedLocalPoint = localPoint;
+        if (localPoint.magnitude > uiActualRadius)
+        {
+            clampedLocalPoint = localPoint.normalized * uiActualRadius;
+        }
+
+        td.customTreasureChestPosition = new Vector3(
+            clampedLocalPoint.x / uiActualRadius * td.circleRadius,
+            0,
+            clampedLocalPoint.y / uiActualRadius * td.circleRadius
+        );
+
+        RegenerateTreasureChestMarker(td);
+    }
+
+    void RegenerateTreasureChestMarker(TrialDefinition td)
+    {
+        if (chestMarkerInstance != null) { Destroy(chestMarkerInstance); chestMarkerInstance = null; }
+
+        if (td.chestPlacementOption == ChestPlacementOption.CircleManual && td.customTreasureChestPosition != Vector3.zero && chestMarkerPrefab != null)
+        {
+            // Ensure chestMarkerPrefab's parent is appropriate for anchoredPosition.
+            // Often, this is the same parent as startingLocationCircle or startingLocationCircle itself.
+            // For this example, let's assume chestMarkerPrefab should be a child of startingLocationCircle for positioning.
+            // If selectedMarker is child of startingLocationCircle, this is consistent.
+            Transform parentForMarker = startingLocationCircle.transform; // Or another designated container.
+            chestMarkerInstance = Instantiate(chestMarkerPrefab, parentForMarker).gameObject;
+
+            PositionMarkerOnUI(chestMarkerInstance.GetComponent<RectTransform>(), td.customTreasureChestPosition, td.circleRadius);
+            chestMarkerInstance.SetActive(true);
+        }
+    }
+
+    void SaveSettingsToFile()
+    {
+        SaveUIIntoData();
+
+        ExperimentSettingsData data = new ExperimentSettingsData
+        {
+            participantID = GameSettings.participantID,
+            numberOfTrials = GameSettings.numberOfTrials,
+            enableDistalCues = GameSettings.enableDistalCues,
+            allTrials = GameSettings.allTrials
+        };
+
+        string customName = fileNameInput != null ? fileNameInput.text.Trim() : "";
+        string baseName = string.IsNullOrEmpty(customName)
+            ? $"exp_"
+            : customName;
+
+        string path = Path.Combine(Application.persistentDataPath, baseName + ".json");
+        int counter = 1;
+
+        while (File.Exists(path))
+        {
+            path = Path.Combine(Application.persistentDataPath, $"{baseName}_{counter}.json");
+            counter++;
+        }
+
+        File.WriteAllText(path, JsonUtility.ToJson(data, true));
+        Debug.Log("Settings saved to: " + path);
+
+        ShowStatusText($"Saved settings as: {Path.GetFileName(path)}");
+        PopulateSavedFilesDropdown();
+    }
+
+
+    void ShowStatusText(string message)
+    {
+        if (statusText != null)
+        {
+            statusText.text = message;
+            CancelInvoke(nameof(ClearStatusText));
+            Invoke(nameof(ClearStatusText), 3f); // Clear after 3 seconds
+        }
+    }
+
+    void ClearStatusText()
+    {
+        if (statusText != null)
+        {
+            statusText.text = "";
+        }
+    }
+    void PopulateSavedFilesDropdown()
+    {
+        if (savedFilesDropdown == null) return;
+
+        string[] files = Directory.GetFiles(Application.persistentDataPath, "*.json");
+        savedFilesDropdown.ClearOptions();
+        List<string> options = new List<string>();
+
+        foreach (string file in files)
+        {
+            options.Add(Path.GetFileName(file));
+        }
+
+        savedFilesDropdown.AddOptions(options);
+    }
+
+    public void OnLoadFromDropdown()
+    {
+        if (savedFilesDropdown == null || savedFilesDropdown.options.Count == 0) return;
+
+        string selectedFile = savedFilesDropdown.options[savedFilesDropdown.value].text;
+        string path = Path.Combine(Application.persistentDataPath, selectedFile);
+
+        if (!File.Exists(path)) return;
+
+        ExperimentSettingsData data = JsonUtility.FromJson<ExperimentSettingsData>(File.ReadAllText(path));
+        GameSettings.participantID = data.participantID;
+        GameSettings.allTrials = data.allTrials ?? new TrialDefinition[0];
+        GameSettings.numberOfTrials = GameSettings.allTrials.Length;
+        GameSettings.enableDistalCues = data.enableDistalCues;
+        distalCueToggle.isOn = GameSettings.enableDistalCues;
+        currentTrialIndex = 0;
+
+        RefreshUIFromData();
+        UpdateButtonInteractables();
+
+        ShowStatusText($"Loaded settings from: {selectedFile}");
+    }
+
+    void OnNumberOfCuesChanged(string newValue)
+    {
+        if (!int.TryParse(newValue, out int newNum)) return;
+
+        if (GameSettings.allTrials == null || currentTrialIndex >= GameSettings.allTrials.Length)
+            return;
+
+        var td = GameSettings.allTrials[currentTrialIndex];
+        td.numberOfProximalCues = newNum;
+
+        // Clear custom cue positions if using manual cue placement
+        if (td.cuePlacementOption == CuePlacementOption.CircleManual)
+        {
+
+            td.customCuePositions.Clear();
+            RegenerateCueMarkers(td);
+        }
+    }
+
+    void EnforceCueLimit()
+    {
+        if (GameSettings.allTrials == null || currentTrialIndex >= GameSettings.allTrials.Length)
+            return;
+
+        TrialDefinition td = GameSettings.allTrials[currentTrialIndex];
+        int limit = td.numberOfProximalCues;
+
+        int selected = 0;
+        foreach (Toggle toggle in cueToggles)
+        {
+            if (toggle.isOn) selected++;
+        }
+
+        bool allowMore = selected < limit;
+        foreach (Toggle toggle in cueToggles)
+        {
+            // Disable only if not already selected
+            toggle.interactable = allowMore || toggle.isOn;
+        }
+    }
+
+}
+</file>
+
+<file path="TrialEditorController.cs.meta">
+fileFormatVersion: 2
+guid: a9aada101075c4b54810fdd364d050ef
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="TrialInfo.cs">
+[System.Serializable]
+public class TrialInfo
+{
+    public GameSettings.TrialType trialType = GameSettings.TrialType.Visible;
+    // Add more per-trial fields as needed
+    // e.g., public float uniqueRadius = 20f;
+}
+</file>
+
+<file path="TrialInfo.cs.meta">
+fileFormatVersion: 2
+guid: 1427d3e87a49d4883b09829e2e540ba8
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+<file path="TrialManager.cs">
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class TrialManager : MonoBehaviour
+{
+    // Start is called before the first frame update
+    void Start()
+    {
+        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
+</file>
+
+<file path="TrialManager.cs.meta">
+fileFormatVersion: 2
+guid: 3b553f727d7df443787ff953f78f569e
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant:
+</file>
+
+</files>
