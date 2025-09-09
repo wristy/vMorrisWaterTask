@@ -155,9 +155,12 @@ public class GameManager : MonoBehaviour
         // Reset DataCollector for the new trial
         dataCollector.StartNewTrial(currentTrial);
 
-
-        // Reset Player Position if needed
+        // Reset Player Position then inform DataCollector to log the true start
         ResetPlayerPosition();
+        if (dataCollector != null)
+        {
+            dataCollector.InitializeTrialStartingPosition();
+        }
 
         // Reset the chest
         treasureChestManager.ResetChest();

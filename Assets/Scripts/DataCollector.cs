@@ -22,6 +22,7 @@ public class DataCollector : MonoBehaviour
 
     private string currentPositionFileName;
     private string currentDistanceFileName;
+    private string currentTrialSummaryFileName;
 
     public bool enableTotalDistance = true;
     public bool enableCoordinates = true;
@@ -41,6 +42,12 @@ public class DataCollector : MonoBehaviour
 
     // Quadrant time tracking (Q1: x>=0,z>=0; Q2: x<0,z>=0; Q3: x<0,z<0; Q4: x>=0,z<0)
     private float[] timeInQuadrants = new float[4];
+
+    // Fractal complexity tuning
+    // Maximum grid resolution (power of two) used in box-counting (e.g., 256 => smallest cell ~ (2R/256)).
+    public int fractalMaxGrid = 256;
+    // Optional resampling step (world units). If 0, auto = max((2R)/fractalMaxGrid, R/512).
+    public float fractalResampleStep = 0f;
 
     void Start()
     {
@@ -66,10 +73,6 @@ public class DataCollector : MonoBehaviour
         SetupEnabledColumns();
 
         lastPosition = player.transform.position;
-        if (enableCoordinates)
-        {
-            LogPosition(lastPosition);
-        }
 
         if (treasureChestManager == null)
         {
@@ -119,6 +122,8 @@ public class DataCollector : MonoBehaviour
         {
             enabledColumns.Add("PositionX");
             enabledColumns.Add("PositionZ");
+            enabledColumns.Add("HeadingDeg");
+            enabledColumns.Add("DistanceToChest");
         }
     }
 
@@ -126,7 +131,22 @@ public class DataCollector : MonoBehaviour
     {
         if (enableCoordinates)
         {
-            string positionEntry = $"{timeSinceTrialStart:F3},{position.x},{position.z}";
+            // Heading bearing (degrees) from Unity transform orientation (yaw from transform.forward)
+            string headingStr = GetPlayerHeadingDeg().ToString("F3");
+
+            // Compute distance to chest in XZ plane
+            string distChestStr = "NaN";
+            if (treasureChestManager != null)
+            {
+                Vector3 c = treasureChestManager.ChestPosition;
+                if (c != Vector3.zero)
+                {
+                    float d = Mathf.Sqrt((position.x - c.x) * (position.x - c.x) + (position.z - c.z) * (position.z - c.z));
+                    distChestStr = d.ToString("F3");
+                }
+            }
+
+            string positionEntry = $"{timeSinceTrialStart:F3},{position.x},{position.z},{headingStr},{distChestStr}";
             positionLog.Add(positionEntry);
             pathPoints.Add(new Vector2(position.x, position.z));
         }
@@ -144,18 +164,69 @@ public class DataCollector : MonoBehaviour
         positionLogTimer = 0f;
         for (int i = 0; i < timeInQuadrants.Length; i++) timeInQuadrants[i] = 0f;
 
+        // Do not log yet; wait until player is repositioned by GameManager
         lastPosition = player.transform.position;
-        if (enableCoordinates)
-        {
-            LogPosition(lastPosition);
-        }
 
         currentPositionFileName = $"PositionData_{GameSettings.participantID}.csv";
         currentDistanceFileName = $"DistanceData_{GameSettings.participantID}.csv";
+        currentTrialSummaryFileName = $"TrialData_{GameSettings.participantID}.csv";
 
-        Debug.Log($"DataCollector initialized for Trial {currentTrialNumber}");
         currentTrialNumber = trialNumber;
+        Debug.Log($"DataCollector initialized for Trial {currentTrialNumber}");
+        // Defer collection until the player is reset to the start position
+        isCollecting = false;
+    }
+
+    // Call this AFTER GameManager resets the player's position at trial start.
+    public void InitializeTrialStartingPosition()
+    {
+        Vector3 pos = player.transform.position;
+        lastPosition = pos;
+        // Force the first sample at time 0 to the correct start position with heading from transform
+        timeSinceTrialStart = 0f;
+        if (enableCoordinates)
+        {
+            string headingStr = GetPlayerHeadingDeg().ToString("F3");
+            string distChestStr = "NaN";
+            if (treasureChestManager != null)
+            {
+                Vector3 c = treasureChestManager.ChestPosition;
+                if (c != Vector3.zero)
+                {
+                    float d = Mathf.Sqrt((pos.x - c.x) * (pos.x - c.x) + (pos.z - c.z) * (pos.z - c.z));
+                    distChestStr = d.ToString("F3");
+                }
+            }
+            string entry = $"{0f:F3},{pos.x},{pos.z},{headingStr},{distChestStr}";
+            if (positionLog.Count == 0)
+            {
+                positionLog.Add(entry);
+            }
+            else
+            {
+                // Replace any premature sample if present
+                positionLog[0] = entry;
+            }
+            if (pathPoints.Count == 0)
+                pathPoints.Add(new Vector2(pos.x, pos.z));
+            else
+                pathPoints[0] = new Vector2(pos.x, pos.z);
+        }
+        totalTimeTaken = 0f;
         isCollecting = true;
+    }
+
+    private float GetPlayerHeadingDeg()
+    {
+        if (player == null) return float.NaN;
+        Vector3 fwd = player.transform.forward;
+        // Project to XZ plane in case of tilt
+        fwd.y = 0f;
+        if (fwd.sqrMagnitude < 1e-12f) return float.NaN;
+        fwd.Normalize();
+        float headingDeg = Mathf.Atan2(fwd.z, fwd.x) * Mathf.Rad2Deg; // 0 deg along +X, 90 deg along +Z
+        if (headingDeg < 0f) headingDeg += 360f;
+        return headingDeg;
     }
 
     public void ExportData()
@@ -240,9 +311,288 @@ public class DataCollector : MonoBehaviour
         }
         isCollecting = false;
         ExportData();
-        ExportDistanceData();
-        ExportQuadrantData();
+        ExportTrialSummaryData();
         ExportPathTraceImage();
+    }
+
+    public void ExportTrialSummaryData()
+    {
+        // Determine chest quadrant first
+        int chestQuadrant = 0;
+        if (treasureChestManager != null)
+        {
+            Vector3 c = treasureChestManager.ChestPosition;
+            if (c != Vector3.zero)
+            {
+                chestQuadrant = GetQuadrant(c);
+            }
+        }
+
+        string fullPath = Path.Combine(expDataDir, currentTrialSummaryFileName);
+        bool writeHeader = !File.Exists(fullPath);
+
+        float total = Mathf.Max(0.0001f, totalTimeTaken);
+        float prop = (chestQuadrant >= 1 && chestQuadrant <= 4) ? (timeInQuadrants[chestQuadrant - 1] / total) : 0f;
+
+        using (StreamWriter writer = new StreamWriter(fullPath, append: true))
+        {
+            if (writeHeader)
+            {
+                writer.WriteLine("trialNumber,totalDistance,totalTimeTaken,chestQuadrant,timeQ1,timeQ2,timeQ3,timeQ4,proportionInChestQuadrant,fractalDimensionBox,straightnessIndex,tortuosityRadPerMeter,angularEntropyBits,crossings");
+            }
+            float fd = EstimateFractalDimensionBoxCounting(pathPoints, GameSettings.circleRadius);
+            string fdStr = float.IsNaN(fd) ? "NaN" : fd.ToString("F4");
+            float si = ComputeStraightnessIndex(pathPoints);
+            string siStr = float.IsNaN(si) ? "NaN" : si.ToString("F4");
+            float tort = ComputeTortuosity(pathPoints);
+            string tortStr = float.IsNaN(tort) ? "NaN" : tort.ToString("F4");
+            float angEnt = ComputeAngularEntropy(pathPoints, 18);
+            string angEntStr = float.IsNaN(angEnt) ? "NaN" : angEnt.ToString("F4");
+            int crossings = CountSelfCrossings(pathPoints);
+            writer.WriteLine($"{currentTrialNumber},{totalDistance},{totalTimeTaken},{chestQuadrant},{timeInQuadrants[0]:F3},{timeInQuadrants[1]:F3},{timeInQuadrants[2]:F3},{timeInQuadrants[3]:F3},{prop:F4},{fdStr},{siStr},{tortStr},{angEntStr},{crossings}");
+        }
+
+        Debug.Log($"Trial summary data saved to: {fullPath}");
+    }
+
+    // Estimates the planar fractal dimension of the trajectory via box-counting.
+    // Uses grids with subdivisions per axis: 2,4,8,... and counts occupied boxes.
+    // Returns NaN if insufficient data.
+    private float EstimateFractalDimensionBoxCounting(List<Vector2> pts, float arenaRadius)
+    {
+        if (pts == null || pts.Count < 2) return float.NaN;
+        float R = Mathf.Max(0.001f, arenaRadius);
+
+        // Compute total path length to detect degenerate paths
+        float pathLen = 0f;
+        for (int i = 1; i < pts.Count; i++) pathLen += Vector2.Distance(pts[i - 1], pts[i]);
+        if (pathLen < 1e-3f) return float.NaN; // essentially stationary
+
+        // Build a densified copy of the path for finer coverage
+        float dsAuto = Mathf.Max((2f * R) / Mathf.Max(4, Mathf.NextPowerOfTwo(Mathf.Clamp(fractalMaxGrid, 4, 1024))), R / 512f);
+        float ds = (fractalResampleStep > 0f) ? fractalResampleStep : dsAuto;
+        List<Vector2> dense = new List<Vector2>(pts.Count * 2);
+        dense.Add(pts[0]);
+        const int maxDense = 50000;
+        for (int i = 1; i < pts.Count; i++)
+        {
+            Vector2 a = dense[dense.Count - 1];
+            Vector2 b = pts[i];
+            float segLen = Vector2.Distance(a, b);
+            if (segLen <= 1e-6f)
+            {
+                continue;
+            }
+            int steps = Mathf.Clamp(Mathf.FloorToInt(segLen / ds), 0, 10000);
+            if (steps > 0)
+            {
+                Vector2 dir = (b - a) / (steps + 1);
+                for (int s = 1; s <= steps; s++)
+                {
+                    dense.Add(a + dir * s);
+                    if (dense.Count >= maxDense) break;
+                }
+                if (dense.Count >= maxDense) break;
+            }
+            dense.Add(b);
+            if (dense.Count >= maxDense) break;
+        }
+
+        // Grid subdivisions (powers of two) up to configured max
+        int maxM = Mathf.NextPowerOfTwo(Mathf.Clamp(fractalMaxGrid, 4, 1024));
+        List<int> ms = new List<int>();
+        for (int m = 4; m <= maxM; m <<= 1) ms.Add(m);
+
+        List<float> xs = new List<float>(); // log(m)
+        List<float> ys = new List<float>(); // log(N)
+
+        foreach (int m in ms)
+        {
+            float cell = (2f * R) / m;
+            if (cell <= 0f) continue;
+
+            var occupied = new HashSet<long>();
+
+            // Mark cells traversed by each polyline segment using Bresenham in grid space
+            for (int i = 1; i < dense.Count; i++)
+            {
+                Vector2 a = dense[i - 1];
+                Vector2 b = dense[i];
+
+                // Map to grid indices
+                int ax = Mathf.Clamp(Mathf.FloorToInt((a.x + R) / cell), 0, m - 1);
+                int ay = Mathf.Clamp(Mathf.FloorToInt((a.y + R) / cell), 0, m - 1);
+                int bx = Mathf.Clamp(Mathf.FloorToInt((b.x + R) / cell), 0, m - 1);
+                int by = Mathf.Clamp(Mathf.FloorToInt((b.y + R) / cell), 0, m - 1);
+
+                MarkLineCells(ax, ay, bx, by, occupied);
+            }
+
+            int N = occupied.Count;
+            // Skip degenerate scales (no occupancy or full saturation)
+            if (N <= 0 || N >= m * m) continue;
+
+            xs.Add(Mathf.Log(m));
+            ys.Add(Mathf.Log((float)N));
+        }
+
+        int n = xs.Count;
+        if (n < 3) return float.NaN;
+
+        // Least-squares slope
+        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        for (int i = 0; i < n; i++)
+        {
+            double x = xs[i];
+            double y = ys[i];
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumX2 += x * x;
+        }
+        double denom = n * sumX2 - sumX * sumX;
+        if (denom <= 1e-12) return float.NaN;
+        double slope = (n * sumXY - sumX * sumY) / denom;
+        
+        float D = (float)slope;
+        if (float.IsNaN(D)) return float.NaN;
+        return D;
+    }
+
+    private void MarkLineCells(int x0, int y0, int x1, int y1, HashSet<long> occ)
+    {
+        int dx = Mathf.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        int dy = -Mathf.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy, e2;
+        while (true)
+        {
+            occ.Add((((long)x0) << 32) ^ (uint)y0);
+            if (x0 == x1 && y0 == y1) break;
+            e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
+    }
+
+    private float ComputePathLength(List<Vector2> pts)
+    {
+        if (pts == null || pts.Count < 2) return 0f;
+        float len = 0f;
+        for (int i = 1; i < pts.Count; i++) len += Vector2.Distance(pts[i - 1], pts[i]);
+        return len;
+    }
+
+    private float ComputeStraightnessIndex(List<Vector2> pts)
+    {
+        if (pts == null || pts.Count < 2) return float.NaN;
+        float pathLen = ComputePathLength(pts);
+        if (pathLen <= 1e-6f) return float.NaN;
+        float disp = Vector2.Distance(pts[0], pts[pts.Count - 1]);
+        float si = disp / pathLen;
+        return Mathf.Clamp01(si);
+    }
+
+    private float ComputeTortuosity(List<Vector2> pts)
+    {
+        if (pts == null || pts.Count < 3) return float.NaN;
+        float pathLen = ComputePathLength(pts);
+        if (pathLen <= 1e-6f) return float.NaN;
+        // headings per segment
+        List<float> headings = new List<float>(pts.Count - 1);
+        for (int i = 1; i < pts.Count; i++)
+        {
+            Vector2 d = pts[i] - pts[i - 1];
+            if (d.sqrMagnitude < 1e-10f) continue; // skip near-zero step
+            float h = Mathf.Atan2(d.y, d.x); // radians
+            headings.Add(h);
+        }
+        if (headings.Count < 2) return float.NaN;
+        float totalTurn = 0f;
+        for (int i = 1; i < headings.Count; i++)
+        {
+            float dh = AngleDiffRad(headings[i - 1], headings[i]);
+            totalTurn += Mathf.Abs(dh);
+        }
+        return totalTurn / pathLen; // rad per meter
+    }
+
+    private float AngleDiffRad(float a, float b)
+    {
+        float d = b - a;
+        while (d > Mathf.PI) d -= 2f * Mathf.PI;
+        while (d < -Mathf.PI) d += 2f * Mathf.PI;
+        return d;
+    }
+
+    private float ComputeAngularEntropy(List<Vector2> pts, int bins)
+    {
+        if (pts == null || pts.Count < 3) return float.NaN;
+        if (bins <= 1) bins = 12;
+        int[] hist = new int[bins];
+        int segCount = 0;
+        for (int i = 1; i < pts.Count; i++)
+        {
+            Vector2 d = pts[i] - pts[i - 1];
+            if (d.sqrMagnitude < 1e-10f) continue;
+            float h = Mathf.Atan2(d.y, d.x); // [-pi, pi]
+            float norm = (h + Mathf.PI) / (2f * Mathf.PI); // [0,1)
+            int bin = Mathf.Clamp(Mathf.FloorToInt(norm * bins), 0, bins - 1);
+            hist[bin]++;
+            segCount++;
+        }
+        if (segCount == 0) return float.NaN;
+        float H = 0f;
+        for (int i = 0; i < bins; i++)
+        {
+            if (hist[i] == 0) continue;
+            float p = (float)hist[i] / segCount;
+            H -= p * Mathf.Log(p, 2f);
+        }
+        return H; // bits
+    }
+
+    private int CountSelfCrossings(List<Vector2> pts)
+    {
+        if (pts == null || pts.Count < 4) return 0;
+        int m = pts.Count - 1; // segments
+        int crossings = 0;
+        for (int i = 0; i < m; i++)
+        {
+            Vector2 a1 = pts[i];
+            Vector2 a2 = pts[i + 1];
+            for (int j = i + 2; j < m; j++)
+            {
+                // Skip adjacent segments and shared endpoints
+                if (j == i) continue;
+                if (j == i + 1) continue;
+                Vector2 b1 = pts[j];
+                Vector2 b2 = pts[j + 1];
+                if (SegmentsIntersectProper(a1, a2, b1, b2)) crossings++;
+            }
+        }
+        return crossings;
+    }
+
+    private bool SegmentsIntersectProper(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2)
+    {
+        // Proper intersection excluding collinear-overlap and endpoints
+        float o1 = Orient(p1, p2, q1);
+        float o2 = Orient(p1, p2, q2);
+        float o3 = Orient(q1, q2, p1);
+        float o4 = Orient(q1, q2, p2);
+        if (o1 == 0 || o2 == 0 || o3 == 0 || o4 == 0)
+        {
+            // handle near-collinear/endpoints with epsilon: treat as non-crossing
+            const float eps = 1e-6f;
+            if (Mathf.Abs(o1) < eps || Mathf.Abs(o2) < eps || Mathf.Abs(o3) < eps || Mathf.Abs(o4) < eps)
+                return false;
+        }
+        return (o1 > 0f) != (o2 > 0f) && (o3 > 0f) != (o4 > 0f);
+    }
+
+    private float Orient(Vector2 a, Vector2 b, Vector2 c)
+    {
+        return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
     }
 
     public void ExportPathTraceImage()
@@ -381,7 +731,7 @@ public class DataCollector : MonoBehaviour
         string fullPath = Path.Combine(expDataDir, fileName);
         byte[] jpg = tex.EncodeToJPG(Mathf.Clamp(traceJpgQuality, 1, 100));
         File.WriteAllBytes(fullPath, jpg);
-        Debug.Log($"Path trace image saved to: {fullPath}") ;
+        Debug.Log($"Path trace image saved to: {fullPath}");
 
         // Cleanup
         Object.Destroy(tex);

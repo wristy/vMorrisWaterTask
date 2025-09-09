@@ -54,6 +54,19 @@ public class TrialEditorController : MonoBehaviour
     public Button copyToAllButton;
     public Toggle[] cueToggles; // Assign 8 toggles in the Inspector
 
+    // Starting location dropdown mapping: show Auto first without changing enum values
+    private readonly StartingLocationOption[] startingLocOrder = new[]
+    {
+        StartingLocationOption.Auto,
+        StartingLocationOption.Randomize,
+        StartingLocationOption.Circle
+    };
+    private readonly List<string> startingLocLabels = new List<string>
+    {
+        "Auto",
+        "Randomize",
+        "Manual"
+    };
 
     public string nextSceneName = "TrialScene";
     private int currentTrialIndex = 0;
@@ -89,6 +102,13 @@ public class TrialEditorController : MonoBehaviour
 
 
         distalCueToggle.isOn = GameSettings.enableDistalCues;
+
+        // Rebuild starting location dropdown to desired order (Auto first)
+        if (startingLocationDropdown != null)
+        {
+            startingLocationDropdown.ClearOptions();
+            startingLocationDropdown.AddOptions(startingLocLabels);
+        }
 
         startingLocationDropdown.onValueChanged.AddListener((_) => OnStartingLocationOptionChanged());
         cuePlacementDropdown.onValueChanged.AddListener((_) => OnCuePlacementOptionChanged());
@@ -170,7 +190,8 @@ public class TrialEditorController : MonoBehaviour
         cuesInput.text = td.numberOfProximalCues.ToString();
         timeLimitInput.text = td.timeLimit.ToString();
         trialTypeDropdown.value = (int)td.trialType;
-        startingLocationDropdown.value = (int)td.startingLocationOption;
+        // Map enum value to dropdown index according to our custom order
+        startingLocationDropdown.value = StartingLocToDropdownIndex(td.startingLocationOption);
         cuePlacementDropdown.value = (int)td.cuePlacementOption;
         chestPlacementDropdown.value = (int)td.chestPlacementOption;
         distalCueToggle.isOn = GameSettings.enableDistalCues;
@@ -228,7 +249,8 @@ public class TrialEditorController : MonoBehaviour
         if (int.TryParse(cuesInput.text, out int nCues)) td.numberOfProximalCues = nCues;
         if (int.TryParse(timeLimitInput.text, out int time)) td.timeLimit = time;
         td.trialType = (GameSettings.TrialType)trialTypeDropdown.value;
-        td.startingLocationOption = (StartingLocationOption)startingLocationDropdown.value;
+        // Map dropdown index back to enum value
+        td.startingLocationOption = DropdownIndexToStartingLoc(startingLocationDropdown.value);
         td.cuePlacementOption = (CuePlacementOption)cuePlacementDropdown.value;
         td.chestPlacementOption = (ChestPlacementOption)chestPlacementDropdown.value;
         GameSettings.enableDistalCues = distalCueToggle.isOn;
@@ -239,7 +261,22 @@ public class TrialEditorController : MonoBehaviour
         }
     }
 
-    void OnStartingLocationOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].startingLocationOption = (StartingLocationOption)startingLocationDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
+    void OnStartingLocationOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].startingLocationOption = DropdownIndexToStartingLoc(startingLocationDropdown.value); UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
+
+    int StartingLocToDropdownIndex(StartingLocationOption opt)
+    {
+        for (int i = 0; i < startingLocOrder.Length; i++)
+        {
+            if (startingLocOrder[i] == opt) return i;
+        }
+        return 0;
+    }
+
+    StartingLocationOption DropdownIndexToStartingLoc(int idx)
+    {
+        if (idx >= 0 && idx < startingLocOrder.Length) return startingLocOrder[idx];
+        return startingLocOrder[0];
+    }
     void OnCuePlacementOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].cuePlacementOption = (CuePlacementOption)cuePlacementDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
     void OnChestPlacementOptionChanged() { if (GameSettings.allTrials == null || GameSettings.allTrials.Length <= currentTrialIndex) return; GameSettings.allTrials[currentTrialIndex].chestPlacementOption = (ChestPlacementOption)chestPlacementDropdown.value; UpdateUIVisibilityAndMarkers(GameSettings.allTrials[currentTrialIndex]); }
 
