@@ -30,6 +30,7 @@ public class TrialDefinition
     public bool[] cueSelections = new bool[8]; // Which cues to enable
     public float circleRadius = 20f;
     public int numberOfProximalCues = 4;
+    public int numberOfQuadrants = 4;
     public GameSettings.TrialType trialType = GameSettings.TrialType.Visible;
     public int timeLimit = -999;
 

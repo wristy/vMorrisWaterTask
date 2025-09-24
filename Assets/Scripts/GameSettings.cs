@@ -8,6 +8,7 @@ public static class GameSettings
     // for quick single‐trial usage:
     public static float circleRadius = 20f;
     public static int numberOfProximalCues = 4;
+    public static int numberOfQuadrants = 4;
     public static bool enableDistalCues = true;
     public static TrialType trialType = TrialType.Visible;
     public static int timeLimit = 99999;

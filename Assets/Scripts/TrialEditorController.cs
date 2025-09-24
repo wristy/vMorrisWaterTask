@@ -16,6 +16,7 @@ public class TrialEditorController : MonoBehaviour
     public TMP_Text trialLabel;
     public TMP_InputField radiusInput;
     public TMP_InputField cuesInput;
+    public TMP_InputField quadrantsInput;
     public TMP_InputField timeLimitInput;
     public TMP_Dropdown trialTypeDropdown;
     public Button saveButton;
@@ -99,6 +100,10 @@ public class TrialEditorController : MonoBehaviour
         saveButton.onClick.AddListener(SaveSettingsToFile);
         loadButton.onClick.AddListener(OnLoadFromDropdown);
         cuesInput.onEndEdit.AddListener(OnNumberOfCuesChanged);
+        if (quadrantsInput != null)
+        {
+            quadrantsInput.onEndEdit.AddListener(OnNumberOfQuadrantsChanged);
+        }
 
 
         distalCueToggle.isOn = GameSettings.enableDistalCues;
@@ -132,6 +137,7 @@ public class TrialEditorController : MonoBehaviour
             TrialDefinition firstTrial = GameSettings.allTrials[0];
             GameSettings.circleRadius = firstTrial.circleRadius;
             GameSettings.numberOfProximalCues = firstTrial.numberOfProximalCues;
+            GameSettings.numberOfQuadrants = firstTrial.numberOfQuadrants;
             GameSettings.trialType = firstTrial.trialType;
             GameSettings.timeLimit = firstTrial.timeLimit;
         }
@@ -150,6 +156,7 @@ public class TrialEditorController : MonoBehaviour
             {
                 circleRadius = currentSettings.circleRadius,
                 numberOfProximalCues = currentSettings.numberOfProximalCues,
+                numberOfQuadrants = currentSettings.numberOfQuadrants,
                 trialType = currentSettings.trialType,
                 timeLimit = currentSettings.timeLimit,
                 startingLocationOption = currentSettings.startingLocationOption,
@@ -188,6 +195,10 @@ public class TrialEditorController : MonoBehaviour
         trialLabel.text = $"Trial {currentTrialIndex + 1} of {GameSettings.allTrials.Length}";
         radiusInput.text = td.circleRadius.ToString();
         cuesInput.text = td.numberOfProximalCues.ToString();
+        if (quadrantsInput != null)
+        {
+            quadrantsInput.text = td.numberOfQuadrants.ToString();
+        }
         timeLimitInput.text = td.timeLimit.ToString();
         trialTypeDropdown.value = (int)td.trialType;
         // Map enum value to dropdown index according to our custom order
@@ -248,6 +259,14 @@ public class TrialEditorController : MonoBehaviour
         if (float.TryParse(radiusInput.text, out float rad)) td.circleRadius = rad;
         if (int.TryParse(cuesInput.text, out int nCues)) td.numberOfProximalCues = nCues;
         if (int.TryParse(timeLimitInput.text, out int time)) td.timeLimit = time;
+        if (quadrantsInput != null && int.TryParse(quadrantsInput.text, out int quadrantCount))
+        {
+            td.numberOfQuadrants = QuadrantUtility.ClampCount(quadrantCount);
+            if (quadrantCount != td.numberOfQuadrants)
+            {
+                quadrantsInput.SetTextWithoutNotify(td.numberOfQuadrants.ToString());
+            }
+        }
         td.trialType = (GameSettings.TrialType)trialTypeDropdown.value;
         // Map dropdown index back to enum value
         td.startingLocationOption = DropdownIndexToStartingLoc(startingLocationDropdown.value);
@@ -545,6 +564,27 @@ public class TrialEditorController : MonoBehaviour
 
             td.customCuePositions.Clear();
             RegenerateCueMarkers(td);
+        }
+    }
+
+    void OnNumberOfQuadrantsChanged(string newValue)
+    {
+        if (!int.TryParse(newValue, out int newNum))
+        {
+            return;
+        }
+
+        int clamped = QuadrantUtility.ClampCount(newNum);
+
+        if (GameSettings.allTrials == null || currentTrialIndex >= GameSettings.allTrials.Length)
+            return;
+
+        var td = GameSettings.allTrials[currentTrialIndex];
+        td.numberOfQuadrants = clamped;
+
+        if (quadrantsInput != null && clamped != newNum)
+        {
+            quadrantsInput.SetTextWithoutNotify(clamped.ToString());
         }
     }
 

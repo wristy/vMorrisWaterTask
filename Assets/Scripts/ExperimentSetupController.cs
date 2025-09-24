@@ -97,6 +97,7 @@ public class ExperimentSetupController : MonoBehaviour
                 var first = GameSettings.allTrials[0];
                 GameSettings.circleRadius = first.circleRadius;
                 GameSettings.numberOfProximalCues = first.numberOfProximalCues;
+                GameSettings.numberOfQuadrants = first.numberOfQuadrants;
                 GameSettings.trialType = first.trialType;
                 GameSettings.timeLimit = first.timeLimit;
             }
@@ -143,6 +144,7 @@ public class ExperimentSetupController : MonoBehaviour
                 var first = GameSettings.allTrials[0];
                 GameSettings.circleRadius = first.circleRadius;
                 GameSettings.numberOfProximalCues = first.numberOfProximalCues;
+                GameSettings.numberOfQuadrants = first.numberOfQuadrants;
                 GameSettings.trialType = first.trialType;
                 GameSettings.timeLimit = first.timeLimit;
             }

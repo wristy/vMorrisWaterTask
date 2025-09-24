@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -40,8 +41,10 @@ public class DataCollector : MonoBehaviour
     public int tracePaddingPx = 24;
     public int traceJpgQuality = 90;
 
-    // Quadrant time tracking (Q1: x>=0,z>=0; Q2: x<0,z>=0; Q3: x<0,z<0; Q4: x>=0,z<0)
-    private float[] timeInQuadrants = new float[4];
+    // Quadrant time tracking
+    private int currentQuadrantCount = QuadrantUtility.MinQuadrants;
+    private float[] timeInQuadrants = Array.Empty<float>();
+    private readonly HashSet<string> headerWarningPrinted = new HashSet<string>();
 
     // Fractal complexity tuning
     // Maximum grid resolution (power of two) used in box-counting (e.g., 256 => smallest cell ~ (2R/256)).
@@ -69,6 +72,8 @@ public class DataCollector : MonoBehaviour
         positionLog = new List<string>();
         enabledColumns = new List<string>();
         pathPoints = new List<Vector2>();
+        currentQuadrantCount = QuadrantUtility.ClampCount(GameSettings.numberOfQuadrants);
+        timeInQuadrants = new float[currentQuadrantCount];
 
         SetupEnabledColumns();
 
@@ -91,7 +96,7 @@ public class DataCollector : MonoBehaviour
 
         // Accumulate time in current quadrant
         int q = GetQuadrant(currentPosition);
-        if (q >= 1 && q <= 4)
+        if (q >= 1 && q <= currentQuadrantCount && q - 1 < timeInQuadrants.Length)
         {
             timeInQuadrants[q - 1] += Time.deltaTime;
         }
@@ -109,10 +114,7 @@ public class DataCollector : MonoBehaviour
 
     int GetQuadrant(Vector3 pos)
     {
-        if (pos.x >= 0f && pos.z >= 0f) return 1;
-        if (pos.x < 0f && pos.z >= 0f) return 2;
-        if (pos.x < 0f && pos.z < 0f) return 3;
-        return 4;
+        return QuadrantUtility.GetQuadrant(pos, currentQuadrantCount);
     }
 
     void SetupEnabledColumns()
@@ -154,6 +156,7 @@ public class DataCollector : MonoBehaviour
 
     public void StartNewTrial(int trialNumber)
     {
+        currentQuadrantCount = QuadrantUtility.ClampCount(GameSettings.numberOfQuadrants);
         timeSinceTrialStart = 0f;
         totalDistance = 0f;
         totalTimeTaken = 0f;
@@ -162,7 +165,7 @@ public class DataCollector : MonoBehaviour
         positionLog.Clear();
         pathPoints.Clear();
         positionLogTimer = 0f;
-        for (int i = 0; i < timeInQuadrants.Length; i++) timeInQuadrants[i] = 0f;
+        timeInQuadrants = new float[currentQuadrantCount];
 
         // Do not log yet; wait until player is repositioned by GameManager
         lastPosition = player.transform.position;
@@ -279,27 +282,150 @@ public class DataCollector : MonoBehaviour
             Vector3 c = treasureChestManager.ChestPosition;
             if (c != Vector3.zero)
             {
-                chestQuadrant = GetQuadrant(c);
+                chestQuadrant = QuadrantUtility.GetQuadrant(c, currentQuadrantCount);
             }
         }
 
         string fileName = $"QuadrantData_{GameSettings.participantID}.csv";
         string fullPath = Path.Combine(expDataDir, fileName);
         bool writeHeader = !File.Exists(fullPath);
+        string header = BuildQuadrantHeader();
 
         float total = Mathf.Max(0.0001f, totalTimeTaken);
-        float prop = (chestQuadrant >= 1 && chestQuadrant <= 4) ? (timeInQuadrants[chestQuadrant - 1] / total) : 0f;
+        float prop = (chestQuadrant >= 1 && chestQuadrant <= currentQuadrantCount && currentQuadrantCount > 0)
+            ? (timeInQuadrants[chestQuadrant - 1] / total)
+            : 0f;
+
+        if (!writeHeader)
+        {
+            WarnIfHeaderMismatch(fullPath, header);
+        }
 
         using (StreamWriter writer = new StreamWriter(fullPath, append: true))
         {
             if (writeHeader)
             {
-                writer.WriteLine("trialNumber,chestQuadrant,timeQ1,timeQ2,timeQ3,timeQ4,proportionInChestQuadrant");
+                writer.WriteLine(header);
             }
-            writer.WriteLine($"{currentTrialNumber},{chestQuadrant},{timeInQuadrants[0]:F3},{timeInQuadrants[1]:F3},{timeInQuadrants[2]:F3},{timeInQuadrants[3]:F3},{prop:F4}");
+            writer.WriteLine(BuildQuadrantRow(chestQuadrant, prop));
         }
 
         Debug.Log($"Quadrant data saved to: {fullPath}");
+    }
+
+    private string BuildQuadrantHeader()
+    {
+        List<string> columns = new List<string>
+        {
+            "trialNumber",
+            "numberOfQuadrants",
+            "chestQuadrant"
+        };
+
+        for (int i = 1; i <= currentQuadrantCount; i++)
+        {
+            columns.Add($"timeQ{i}");
+        }
+
+        columns.Add("proportionInChestQuadrant");
+        return string.Join(",", columns);
+    }
+
+    private string BuildQuadrantRow(int chestQuadrant, float proportion)
+    {
+        List<string> values = new List<string>
+        {
+            currentTrialNumber.ToString(),
+            currentQuadrantCount.ToString(),
+            chestQuadrant.ToString()
+        };
+
+        for (int i = 0; i < currentQuadrantCount; i++)
+        {
+            values.Add(timeInQuadrants[i].ToString("F3"));
+        }
+
+        values.Add(proportion.ToString("F4"));
+        return string.Join(",", values);
+    }
+
+    private void WarnIfHeaderMismatch(string path, string expectedHeader)
+    {
+        string fileName = Path.GetFileName(path);
+        if (headerWarningPrinted.Contains(fileName))
+        {
+            return;
+        }
+
+        try
+        {
+            using (StreamReader reader = new StreamReader(path))
+            {
+                string firstLine = reader.ReadLine();
+                if (!string.IsNullOrEmpty(firstLine) && firstLine != expectedHeader)
+                {
+                    Debug.LogWarning($"[DataCollector] Existing CSV '{fileName}' uses an older column layout. New rows will follow '{expectedHeader}'. Consider archiving or removing the old file for consistency.");
+                    headerWarningPrinted.Add(fileName);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[DataCollector] Could not verify header for '{fileName}': {ex.Message}");
+            headerWarningPrinted.Add(fileName);
+        }
+    }
+
+    private string BuildTrialSummaryHeader()
+    {
+        List<string> columns = new List<string>
+        {
+            "trialNumber",
+            "totalDistance",
+            "totalTimeTaken",
+            "numberOfQuadrants",
+            "chestQuadrant"
+        };
+
+        for (int i = 1; i <= currentQuadrantCount; i++)
+        {
+            columns.Add($"timeQ{i}");
+        }
+
+        columns.Add("proportionInChestQuadrant");
+        columns.Add("fractalDimensionBox");
+        columns.Add("straightnessIndex");
+        columns.Add("tortuosityRadPerMeter");
+        columns.Add("angularEntropyBits");
+        columns.Add("crossings");
+
+        return string.Join(",", columns);
+    }
+
+    private string BuildTrialSummaryRow(int chestQuadrant, float proportion, string fdStr, string siStr, string tortStr, string angEntStr, int crossings)
+    {
+        List<string> values = new List<string>
+        {
+            currentTrialNumber.ToString(),
+            totalDistance.ToString(),
+            totalTimeTaken.ToString(),
+            currentQuadrantCount.ToString(),
+            chestQuadrant.ToString()
+        };
+
+        for (int i = 0; i < currentQuadrantCount; i++)
+        {
+            values.Add(timeInQuadrants[i].ToString("F3"));
+        }
+
+        values.Add(proportion.ToString("F4"));
+        values.Add(fdStr);
+        values.Add(siStr);
+        values.Add(tortStr);
+        values.Add(angEntStr);
+        values.Add(crossings.ToString());
+
+        return string.Join(",", values);
     }
 
     public void StopCollectionAndExport()
@@ -312,6 +438,7 @@ public class DataCollector : MonoBehaviour
         isCollecting = false;
         ExportData();
         ExportTrialSummaryData();
+        ExportQuadrantData();
         ExportPathTraceImage();
     }
 
@@ -324,21 +451,29 @@ public class DataCollector : MonoBehaviour
             Vector3 c = treasureChestManager.ChestPosition;
             if (c != Vector3.zero)
             {
-                chestQuadrant = GetQuadrant(c);
+                chestQuadrant = QuadrantUtility.GetQuadrant(c, currentQuadrantCount);
             }
         }
 
         string fullPath = Path.Combine(expDataDir, currentTrialSummaryFileName);
         bool writeHeader = !File.Exists(fullPath);
+        string header = BuildTrialSummaryHeader();
 
         float total = Mathf.Max(0.0001f, totalTimeTaken);
-        float prop = (chestQuadrant >= 1 && chestQuadrant <= 4) ? (timeInQuadrants[chestQuadrant - 1] / total) : 0f;
+        float prop = (chestQuadrant >= 1 && chestQuadrant <= currentQuadrantCount && currentQuadrantCount > 0)
+            ? (timeInQuadrants[chestQuadrant - 1] / total)
+            : 0f;
+
+        if (!writeHeader)
+        {
+            WarnIfHeaderMismatch(fullPath, header);
+        }
 
         using (StreamWriter writer = new StreamWriter(fullPath, append: true))
         {
             if (writeHeader)
             {
-                writer.WriteLine("trialNumber,totalDistance,totalTimeTaken,chestQuadrant,timeQ1,timeQ2,timeQ3,timeQ4,proportionInChestQuadrant,fractalDimensionBox,straightnessIndex,tortuosityRadPerMeter,angularEntropyBits,crossings");
+                writer.WriteLine(header);
             }
             float fd = EstimateFractalDimensionBoxCounting(pathPoints, GameSettings.circleRadius);
             string fdStr = float.IsNaN(fd) ? "NaN" : fd.ToString("F4");
@@ -349,7 +484,7 @@ public class DataCollector : MonoBehaviour
             float angEnt = ComputeAngularEntropy(pathPoints, 18);
             string angEntStr = float.IsNaN(angEnt) ? "NaN" : angEnt.ToString("F4");
             int crossings = CountSelfCrossings(pathPoints);
-            writer.WriteLine($"{currentTrialNumber},{totalDistance},{totalTimeTaken},{chestQuadrant},{timeInQuadrants[0]:F3},{timeInQuadrants[1]:F3},{timeInQuadrants[2]:F3},{timeInQuadrants[3]:F3},{prop:F4},{fdStr},{siStr},{tortStr},{angEntStr},{crossings}");
+            writer.WriteLine(BuildTrialSummaryRow(chestQuadrant, prop, fdStr, siStr, tortStr, angEntStr, crossings));
         }
 
         Debug.Log($"Trial summary data saved to: {fullPath}");
@@ -675,16 +810,20 @@ public class DataCollector : MonoBehaviour
         int cyPx = Mathf.RoundToInt(texCenter.y);
         for (int t = -1; t <= 1; t++) DrawCircle(cxPx, cyPx, rPx + t, black);
 
-        // Draw quadrant axes (crosshair) within the circle
-        Color32 axisColor = new Color32(180, 180, 180, 255);
-        // Horizontal line: from (-radius,0) to (radius,0)
-        Vector2 h0 = texCenter + new Vector2(-radius, 0f) * scale;
-        Vector2 h1 = texCenter + new Vector2(radius, 0f) * scale;
-        DrawLine(Mathf.RoundToInt(h0.x), Mathf.RoundToInt(h0.y), Mathf.RoundToInt(h1.x), Mathf.RoundToInt(h1.y), axisColor);
-        // Vertical line: from (0,-radius) to (0,radius)
-        Vector2 v0 = texCenter + new Vector2(0f, -radius) * scale;
-        Vector2 v1 = texCenter + new Vector2(0f, radius) * scale;
-        DrawLine(Mathf.RoundToInt(v0.x), Mathf.RoundToInt(v0.y), Mathf.RoundToInt(v1.x), Mathf.RoundToInt(v1.y), axisColor);
+        int quadrantCount = QuadrantUtility.ClampCount(GameSettings.numberOfQuadrants);
+        if (quadrantCount > 1)
+        {
+            Color32 axisColor = new Color32(180, 180, 180, 255);
+            float tau = Mathf.PI * 2f;
+            for (int i = 0; i < quadrantCount; i++)
+            {
+                float angle = (tau * i) / quadrantCount;
+                Vector2 dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                Vector2 start = texCenter - dir * radius * scale;
+                Vector2 end = texCenter + dir * radius * scale;
+                DrawLine(Mathf.RoundToInt(start.x), Mathf.RoundToInt(start.y), Mathf.RoundToInt(end.x), Mathf.RoundToInt(end.y), axisColor);
+            }
+        }
 
         // Draw path
         if (pathPoints != null && pathPoints.Count > 1)
@@ -734,6 +873,7 @@ public class DataCollector : MonoBehaviour
         Debug.Log($"Path trace image saved to: {fullPath}");
 
         // Cleanup
-        Object.Destroy(tex);
+        UnityEngine.Object.Destroy(tex);
     }
 }
+    

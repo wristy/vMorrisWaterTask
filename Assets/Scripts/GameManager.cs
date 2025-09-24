@@ -142,6 +142,7 @@ public class GameManager : MonoBehaviour
 
         GameSettings.circleRadius = currentTrialDefinition.circleRadius;
         GameSettings.numberOfProximalCues = currentTrialDefinition.numberOfProximalCues;
+        GameSettings.numberOfQuadrants = QuadrantUtility.ClampCount(currentTrialDefinition.numberOfQuadrants);
         GameSettings.trialType = currentTrialDefinition.trialType;
         GameSettings.timeLimit = currentTrialDefinition.timeLimit;
 
@@ -185,7 +186,7 @@ public class GameManager : MonoBehaviour
             QuitExperiment();
             return;
         }
-        
+
         if (trialInProgress)
         {
             // Increment trial timer
@@ -271,7 +272,7 @@ public class GameManager : MonoBehaviour
         {
             instructionText.text = isLastTrial
                 ? "Congratulations! You've completed all trials!"
-                : "Good job! Moving on to the next trial...";
+                : "Good job! Feel free to look around before the next trial.";
 
             // Enable the parent panel as well, if it exists
             Transform parent = instructionText.transform.parent;
@@ -433,34 +434,32 @@ public class GameManager : MonoBehaviour
                     }
                     else
                     {
-                        // Determine the quadrant of the chest (using X and Z coordinates)
-                        int chestQuadrant;
-                        if (chestPos.x >= 0 && chestPos.z >= 0)
-                            chestQuadrant = 1;
-                        else if (chestPos.x < 0 && chestPos.z >= 0)
-                            chestQuadrant = 2;
-                        else if (chestPos.x < 0 && chestPos.z < 0)
-                            chestQuadrant = 3;
-                        else
-                            chestQuadrant = 4;
+                        int quadrantCount = QuadrantUtility.ClampCount(GameSettings.numberOfQuadrants);
+                        int chestQuadrant = QuadrantUtility.GetQuadrant(chestPos, quadrantCount);
 
-                        // Allowed quadrants are all except the one that contains the chest.
-                        List<int> allowedQuadrants = new List<int> { 1, 2, 3, 4 };
-                        allowedQuadrants.Remove(chestQuadrant);
-
-                        // Randomly choose one of the allowed quadrants.
-                        int chosenQuadrant = allowedQuadrants[Random.Range(0, allowedQuadrants.Count)];
-
-                        // Define quadrant angle ranges:
-                        float angleMin = 0f, angleMax = 0f;
-                        switch (chosenQuadrant)
+                        List<int> allowedQuadrants = new List<int>();
+                        for (int q = 1; q <= quadrantCount; q++)
                         {
-                            case 1: angleMin = 0f; angleMax = 90f; break;
-                            case 2: angleMin = 90f; angleMax = 180f; break;
-                            case 3: angleMin = 180f; angleMax = 270f; break;
-                            case 4: angleMin = 270f; angleMax = 360f; break;
+                            if (q != chestQuadrant)
+                            {
+                                allowedQuadrants.Add(q);
+                            }
                         }
-                        float chosenAngle = Random.Range(angleMin, angleMax);
+
+                        float sectorSize = 360f / quadrantCount;
+                        float chosenAngle;
+
+                        if (allowedQuadrants.Count == 0)
+                        {
+                            chosenAngle = Random.Range(0f, 360f);
+                        }
+                        else
+                        {
+                            int chosenQuadrant = allowedQuadrants[Random.Range(0, allowedQuadrants.Count)];
+                            float angleMin = (chosenQuadrant - 1) * sectorSize;
+                            float angleMax = chosenQuadrant * sectorSize;
+                            chosenAngle = Random.Range(angleMin, angleMax);
+                        }
                         float rad = chosenAngle * Mathf.Deg2Rad;
                         Vector3 spawnPosition = new Vector3(Mathf.Cos(rad), 0, Mathf.Sin(rad)) * (trialDef.circleRadius);
                         spawnPosition.y = 1f; // Offset to avoid being underground
