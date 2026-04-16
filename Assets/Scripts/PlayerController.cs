@@ -8,6 +8,11 @@ public class PlayerController : MonoBehaviour
     public float turnSpeed = 100.0f;
     public float gravity = -9.81f;
 
+    [Header("Arena Bounds")]
+    public bool enforceArenaBounds = true;
+    public Transform arenaCenter;
+    public float boundaryBuffer = 0.25f;
+
     // References to components
     private CharacterController controller;  // Player's CharacterController
     private Transform cameraTransform;       // Camera for mouse look
@@ -27,6 +32,8 @@ public class PlayerController : MonoBehaviour
             HandleMovement();
             HandleGravity();
         }
+
+        ClampToArenaBounds();
     }
 
     void HandleLook()
@@ -67,6 +74,57 @@ public class PlayerController : MonoBehaviour
     public void UnfreezePlayer()
     {
         isFrozen = false;
+    }
+
+    public Vector3 ClampPositionToArena(Vector3 position)
+    {
+        if (!enforceArenaBounds)
+            return position;
+
+        float maxRadius = GetMaxArenaRadius();
+        if (maxRadius <= 0f)
+            return position;
+
+        Vector3 center = arenaCenter != null ? arenaCenter.position : Vector3.zero;
+        Vector2 offset = new Vector2(position.x - center.x, position.z - center.z);
+        float sqrDist = offset.sqrMagnitude;
+        float maxSqr = maxRadius * maxRadius;
+
+        if (sqrDist <= maxSqr)
+            return position;
+
+        Vector2 clamped = offset.normalized * maxRadius;
+        return new Vector3(center.x + clamped.x, position.y, center.z + clamped.y);
+    }
+
+    void ClampToArenaBounds()
+    {
+        Vector3 clamped = ClampPositionToArena(transform.position);
+        Vector3 delta = clamped - transform.position;
+        if (delta.sqrMagnitude < 0.0001f)
+            return;
+
+        if (controller != null && controller.enabled)
+        {
+            controller.enabled = false;
+            transform.position = clamped;
+            controller.enabled = true;
+        }
+        else
+        {
+            transform.position = clamped;
+        }
+    }
+
+    float GetMaxArenaRadius()
+    {
+        float maxRadius = GameSettings.circleRadius - boundaryBuffer;
+        float controllerRadius = 0f;
+        if (controller != null)
+            controllerRadius = controller.radius;
+
+        maxRadius -= controllerRadius;
+        return Mathf.Max(0f, maxRadius);
     }
 
 }

@@ -54,6 +54,10 @@ public class TrialEditorController : MonoBehaviour
     public Button doneButton;
     public Button copyToAllButton;
     public Toggle[] cueToggles; // Assign 8 toggles in the Inspector
+    [Header("Exit Button")]
+    public Button quitButton;
+    public Vector2 quitButtonOffset = new Vector2(-12f, -12f);
+    public Vector2 quitButtonSize = new Vector2(36f, 36f);
 
     // Starting location dropdown mapping: show Auto first without changing enum values
     private readonly StartingLocationOption[] startingLocOrder = new[]
@@ -125,6 +129,8 @@ public class TrialEditorController : MonoBehaviour
         {
             toggle.onValueChanged.AddListener(delegate { EnforceCueLimit(); });
         }
+
+        SetupQuitButton();
     }
 
     public void OnClickPrev() { SaveUIIntoData(); currentTrialIndex--; RefreshUIFromData(); UpdateButtonInteractables(); }
@@ -476,13 +482,6 @@ public class TrialEditorController : MonoBehaviour
             : customName;
 
         string path = Path.Combine(Application.persistentDataPath, baseName + ".json");
-        int counter = 1;
-
-        while (File.Exists(path))
-        {
-            path = Path.Combine(Application.persistentDataPath, $"{baseName}_{counter}.json");
-            counter++;
-        }
 
         File.WriteAllText(path, JsonUtility.ToJson(data, true));
         Debug.Log("Settings saved to: " + path);
@@ -644,5 +643,83 @@ public class TrialEditorController : MonoBehaviour
             cueDistanceValueText.text = $"Cue offset: {meters:0.0} m";
     }
 
+    void SetupQuitButton()
+    {
+        if (quitButton == null)
+        {
+            Canvas canvas = FindRootCanvas();
+            if (canvas == null)
+            {
+                Debug.LogWarning("No Canvas found for quit button.");
+                return;
+            }
+            quitButton = CreateQuitButton(canvas.transform);
+        }
+
+        quitButton.onClick.RemoveListener(QuitExperiment);
+        quitButton.onClick.AddListener(QuitExperiment);
+    }
+
+    Canvas FindRootCanvas()
+    {
+        Canvas[] canvases = FindObjectsOfType<Canvas>();
+        foreach (Canvas canvas in canvases)
+        {
+            if (canvas.isRootCanvas)
+            {
+                return canvas;
+            }
+        }
+        return canvases.Length > 0 ? canvases[0] : null;
+    }
+
+    Button CreateQuitButton(Transform parent)
+    {
+        GameObject buttonObject = new GameObject("QuitButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.layer = parent.gameObject.layer;
+        buttonObject.transform.SetParent(parent, false);
+
+        RectTransform rect = buttonObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(1f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(1f, 1f);
+        rect.sizeDelta = quitButtonSize;
+        rect.anchoredPosition = quitButtonOffset;
+
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = new Color(0f, 0f, 0f, 0.6f);
+
+        GameObject labelObject = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        labelObject.layer = parent.gameObject.layer;
+        labelObject.transform.SetParent(buttonObject.transform, false);
+
+        RectTransform labelRect = labelObject.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+
+        Text label = labelObject.GetComponent<Text>();
+        label.text = "X";
+        label.alignment = TextAnchor.MiddleCenter;
+        label.color = Color.white;
+        label.fontSize = 24;
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.raycastTarget = false;
+
+        Button button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+        return button;
+    }
+
+    public void QuitExperiment()
+    {
+        Debug.Log("Quitting experiment...");
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
 
 }

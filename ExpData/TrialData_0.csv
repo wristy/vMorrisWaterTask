@@ -1,2 +1,2 @@
-trialNumber,totalDistance,totalTimeTaken,numberOfQuadrants,chestQuadrant,timeQ1,timeQ2,timeQ3,timeQ4,proportionInChestQuadrant,fractalDimensionBox,straightnessIndex,tortuosityRadPerMeter,angularEntropyBits,crossings
-1,26.56425,6.303159,4,3,2.886,0.000,1.549,1.867,0.2458,0.9171,0.9057,0.2032,2.3799,0
+trialNumber,totalDistance,totalTimeTaken,averageDistanceToChest,numberOfQuadrants,chestQuadrant,timeQ1,timeQ2,timeQ3,timeQ4,proportionInChestQuadrant,fractalDimensionBox,straightnessIndex,tortuosityRadPerMeter,angularEntropyBits,crossings
+1,33.96836,7.991846,19.5724,4,4,0.000,3.012,2.503,2.476,0.3099,0.9492,0.8473,0.1826,2.5592,0

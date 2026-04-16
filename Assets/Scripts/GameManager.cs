@@ -17,6 +17,8 @@ public class GameManager : MonoBehaviour
     [Header("UI Elements")]
     public GameObject timeUpPanel;
     public TextMeshProUGUI instructionText;
+    [Header("Time Up Panel")]
+    public float timeUpDisplaySeconds = 3f;
 
     [Header("End of Experiment UI")]
     public GameObject experimentCompletePanel;
@@ -99,10 +101,7 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if (timeUpPanel != null)
-        {
-            timeUpPanel.SetActive(false);
-        }
+        ResetTimeUpPanel();
 
         if (experimentCompletePanel != null)
             experimentCompletePanel.SetActive(false);
@@ -136,6 +135,7 @@ public class GameManager : MonoBehaviour
 
         trialInProgress = true;
         Debug.Log($"Starting Trial {currentTrial}");
+        ResetTimeUpPanel();
 
         // Retrieve the current trial definition from the game settings
         currentTrialDefinition = GameSettings.allTrials[currentTrial - 1];
@@ -350,15 +350,6 @@ public class GameManager : MonoBehaviour
         Debug.Log($"Trial {currentTrial} ended due to timeout.");
         trialInProgress = false;
 
-        // Freeze the player
-        playerController.FreezePlayer();
-
-        // Display "time is up" message (if you have assigned a panel or text)
-        if (timeUpPanel != null)
-        {
-            timeUpPanel.SetActive(true);
-        }
-
         // Export data just like the trial ended
         // Immediately stop collection and export at timeout as well
         if (dataCollector != null)
@@ -366,9 +357,7 @@ public class GameManager : MonoBehaviour
             dataCollector.StopCollectionAndExport();
         }
 
-        // Move on to the next trial after a delay
-        currentTrial++;
-        StartCoroutine(StartNextTrialWithDelay(3f)); // Adjust as desired
+        StartCoroutine(TimeUpSequence());
     }
 
 
@@ -377,6 +366,10 @@ public class GameManager : MonoBehaviour
     {
         // Determine starting position based on the trial definition’s starting location option
         Vector3 newStartPosition = GetStartingPosition(currentTrialDefinition);
+        if (playerController != null)
+        {
+            newStartPosition = playerController.ClampPositionToArena(newStartPosition);
+        }
         playerController.transform.position = newStartPosition;
 
         // Set rotation based on starting location option
@@ -493,6 +486,50 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(delay);
 
         StartNextTrial();
+    }
+
+    void ResetTimeUpPanel()
+    {
+        if (timeUpPanel == null) return;
+        timeUpPanel.SetActive(false);
+    }
+
+    IEnumerator TimeUpSequence()
+    {
+        float displaySeconds = Mathf.Max(0f, timeUpDisplaySeconds);
+        Vector3 fixedPosition = playerController != null ? playerController.transform.position : Vector3.zero;
+
+        if (playerController != null)
+        {
+            playerController.UnfreezePlayer();
+        }
+
+        if (timeUpPanel != null)
+        {
+            timeUpPanel.SetActive(true);
+        }
+
+        if (displaySeconds > 0f)
+        {
+            float remainingSeconds = displaySeconds;
+            while (remainingSeconds > 0f)
+            {
+                if (playerController != null)
+                {
+                    playerController.transform.position = fixedPosition;
+                }
+                remainingSeconds -= Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        if (timeUpPanel != null)
+        {
+            timeUpPanel.SetActive(false);
+        }
+
+        currentTrial++;
+        StartCoroutine(StartNextTrialWithDelay(0.001f));
     }
 
     void OnDestroy()

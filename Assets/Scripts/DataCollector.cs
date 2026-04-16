@@ -14,6 +14,7 @@ public class DataCollector : MonoBehaviour
     private bool success = false;
     private float totalTimeTaken = 0f;
     private float timeSinceTrialStart = 0f;
+    private float distanceToChestTimeIntegral = 0f;
 
     public GameObject player;
     public string positionFileNameBase = "PositionData_trial";
@@ -93,6 +94,11 @@ public class DataCollector : MonoBehaviour
         Vector3 currentPosition = player.transform.position;
         float distanceThisFrame = Vector3.Distance(lastPosition, currentPosition);
         totalDistance += distanceThisFrame;
+        float distanceToChest = GetDistanceToChestXZ(currentPosition);
+        if (!float.IsNaN(distanceToChest))
+        {
+            distanceToChestTimeIntegral += distanceToChest * Time.deltaTime;
+        }
 
         // Accumulate time in current quadrant
         int q = GetQuadrant(currentPosition);
@@ -137,16 +143,8 @@ public class DataCollector : MonoBehaviour
             string headingStr = GetPlayerHeadingDeg().ToString("F3");
 
             // Compute distance to chest in XZ plane
-            string distChestStr = "NaN";
-            if (treasureChestManager != null)
-            {
-                Vector3 c = treasureChestManager.ChestPosition;
-                if (c != Vector3.zero)
-                {
-                    float d = Mathf.Sqrt((position.x - c.x) * (position.x - c.x) + (position.z - c.z) * (position.z - c.z));
-                    distChestStr = d.ToString("F3");
-                }
-            }
+            float distChest = GetDistanceToChestXZ(position);
+            string distChestStr = float.IsNaN(distChest) ? "NaN" : distChest.ToString("F3");
 
             string positionEntry = $"{timeSinceTrialStart:F3},{position.x},{position.z},{headingStr},{distChestStr}";
             positionLog.Add(positionEntry);
@@ -160,6 +158,7 @@ public class DataCollector : MonoBehaviour
         timeSinceTrialStart = 0f;
         totalDistance = 0f;
         totalTimeTaken = 0f;
+        distanceToChestTimeIntegral = 0f;
         numberOfIntersections = 0;
         success = false;
         positionLog.Clear();
@@ -190,16 +189,8 @@ public class DataCollector : MonoBehaviour
         if (enableCoordinates)
         {
             string headingStr = GetPlayerHeadingDeg().ToString("F3");
-            string distChestStr = "NaN";
-            if (treasureChestManager != null)
-            {
-                Vector3 c = treasureChestManager.ChestPosition;
-                if (c != Vector3.zero)
-                {
-                    float d = Mathf.Sqrt((pos.x - c.x) * (pos.x - c.x) + (pos.z - c.z) * (pos.z - c.z));
-                    distChestStr = d.ToString("F3");
-                }
-            }
+            float distChest = GetDistanceToChestXZ(pos);
+            string distChestStr = float.IsNaN(distChest) ? "NaN" : distChest.ToString("F3");
             string entry = $"{0f:F3},{pos.x},{pos.z},{headingStr},{distChestStr}";
             if (positionLog.Count == 0)
             {
@@ -230,6 +221,34 @@ public class DataCollector : MonoBehaviour
         float headingDeg = Mathf.Atan2(fwd.z, fwd.x) * Mathf.Rad2Deg; // 0 deg along +X, 90 deg along +Z
         if (headingDeg < 0f) headingDeg += 360f;
         return headingDeg;
+    }
+
+    private float GetDistanceToChestXZ(Vector3 position)
+    {
+        if (treasureChestManager == null)
+        {
+            return float.NaN;
+        }
+
+        Vector3 chestPosition = treasureChestManager.ChestPosition;
+        if (chestPosition == Vector3.zero)
+        {
+            return float.NaN;
+        }
+
+        return Mathf.Sqrt(
+            (position.x - chestPosition.x) * (position.x - chestPosition.x) +
+            (position.z - chestPosition.z) * (position.z - chestPosition.z));
+    }
+
+    private string GetAverageDistanceToChestForTrialString()
+    {
+        if (totalTimeTaken <= 0f)
+        {
+            return "NaN";
+        }
+
+        return (distanceToChestTimeIntegral / totalTimeTaken).ToString("F4");
     }
 
     public void ExportData()
@@ -383,6 +402,7 @@ public class DataCollector : MonoBehaviour
             "trialNumber",
             "totalDistance",
             "totalTimeTaken",
+            "averageDistanceToChest",
             "numberOfQuadrants",
             "chestQuadrant"
         };
@@ -402,13 +422,14 @@ public class DataCollector : MonoBehaviour
         return string.Join(",", columns);
     }
 
-    private string BuildTrialSummaryRow(int chestQuadrant, float proportion, string fdStr, string siStr, string tortStr, string angEntStr, int crossings)
+    private string BuildTrialSummaryRow(string avgDistChestStr, int chestQuadrant, float proportion, string fdStr, string siStr, string tortStr, string angEntStr, int crossings)
     {
         List<string> values = new List<string>
         {
             currentTrialNumber.ToString(),
             totalDistance.ToString(),
             totalTimeTaken.ToString(),
+            avgDistChestStr,
             currentQuadrantCount.ToString(),
             chestQuadrant.ToString()
         };
@@ -484,7 +505,8 @@ public class DataCollector : MonoBehaviour
             float angEnt = ComputeAngularEntropy(pathPoints, 18);
             string angEntStr = float.IsNaN(angEnt) ? "NaN" : angEnt.ToString("F4");
             int crossings = CountSelfCrossings(pathPoints);
-            writer.WriteLine(BuildTrialSummaryRow(chestQuadrant, prop, fdStr, siStr, tortStr, angEntStr, crossings));
+            string avgDistChestStr = GetAverageDistanceToChestForTrialString();
+            writer.WriteLine(BuildTrialSummaryRow(avgDistChestStr, chestQuadrant, prop, fdStr, siStr, tortStr, angEntStr, crossings));
         }
 
         Debug.Log($"Trial summary data saved to: {fullPath}");
