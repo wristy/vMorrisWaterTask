@@ -401,6 +401,7 @@ public class DataCollector : MonoBehaviour
         {
             "trialNumber",
             "totalDistance",
+            "startToEndDistance",
             "totalTimeTaken",
             "averageDistanceToChest",
             "numberOfQuadrants",
@@ -417,17 +418,19 @@ public class DataCollector : MonoBehaviour
         columns.Add("straightnessIndex");
         columns.Add("tortuosityRadPerMeter");
         columns.Add("angularEntropyBits");
+        columns.Add("angularEntropyBits_norm");
         columns.Add("crossings");
 
         return string.Join(",", columns);
     }
 
-    private string BuildTrialSummaryRow(string avgDistChestStr, int chestQuadrant, float proportion, string fdStr, string siStr, string tortStr, string angEntStr, int crossings)
+    private string BuildTrialSummaryRow(string avgDistChestStr, int chestQuadrant, float proportion, string startToEndDistanceStr, string fdStr, string siStr, string tortStr, string angEntStr, string angEntNormStr, int crossings)
     {
         List<string> values = new List<string>
         {
             currentTrialNumber.ToString(),
             totalDistance.ToString(),
+            startToEndDistanceStr,
             totalTimeTaken.ToString(),
             avgDistChestStr,
             currentQuadrantCount.ToString(),
@@ -444,6 +447,7 @@ public class DataCollector : MonoBehaviour
         values.Add(siStr);
         values.Add(tortStr);
         values.Add(angEntStr);
+        values.Add(angEntNormStr);
         values.Add(crossings.ToString());
 
         return string.Join(",", values);
@@ -456,11 +460,34 @@ public class DataCollector : MonoBehaviour
             // Avoid duplicate exports
             return;
         }
+        CaptureFinalPositionSample();
         isCollecting = false;
         ExportData();
         ExportTrialSummaryData();
         ExportQuadrantData();
         ExportPathTraceImage();
+    }
+
+    private void CaptureFinalPositionSample()
+    {
+        if (!enableCoordinates || player == null)
+        {
+            return;
+        }
+
+        Vector3 pos = player.transform.position;
+        Vector2 finalPoint = new Vector2(pos.x, pos.z);
+        if (pathPoints.Count > 0 && Vector2.Distance(pathPoints[pathPoints.Count - 1], finalPoint) <= 1e-4f)
+        {
+            return;
+        }
+
+        string headingStr = GetPlayerHeadingDeg().ToString("F3");
+        float distChest = GetDistanceToChestXZ(pos);
+        string distChestStr = float.IsNaN(distChest) ? "NaN" : distChest.ToString("F3");
+        string entry = $"{timeSinceTrialStart:F3},{pos.x},{pos.z},{headingStr},{distChestStr}";
+        positionLog.Add(entry);
+        pathPoints.Add(finalPoint);
     }
 
     public void ExportTrialSummaryData()
@@ -496,17 +523,21 @@ public class DataCollector : MonoBehaviour
             {
                 writer.WriteLine(header);
             }
-            float fd = EstimateFractalDimensionBoxCounting(pathPoints, GameSettings.circleRadius);
+            float fd = EstimateFractalDimensionBoxCounting(pathPoints);
             string fdStr = float.IsNaN(fd) ? "NaN" : fd.ToString("F4");
-            float si = ComputeStraightnessIndex(pathPoints);
+            float startToEndDistance = ComputeStraightnessNumerator(pathPoints);
+            string startToEndDistanceStr = float.IsNaN(startToEndDistance) ? "NaN" : startToEndDistance.ToString("F4");
+            float si = ComputeStraightnessIndex(startToEndDistance, totalDistance);
             string siStr = float.IsNaN(si) ? "NaN" : si.ToString("F4");
             float tort = ComputeTortuosity(pathPoints);
             string tortStr = float.IsNaN(tort) ? "NaN" : tort.ToString("F4");
             float angEnt = ComputeAngularEntropy(pathPoints, 18);
             string angEntStr = float.IsNaN(angEnt) ? "NaN" : angEnt.ToString("F4");
+            float angEntNorm = NormalizeAngularEntropy(angEnt, 18);
+            string angEntNormStr = float.IsNaN(angEntNorm) ? "NaN" : angEntNorm.ToString("F4");
             int crossings = CountSelfCrossings(pathPoints);
             string avgDistChestStr = GetAverageDistanceToChestForTrialString();
-            writer.WriteLine(BuildTrialSummaryRow(avgDistChestStr, chestQuadrant, prop, fdStr, siStr, tortStr, angEntStr, crossings));
+            writer.WriteLine(BuildTrialSummaryRow(avgDistChestStr, chestQuadrant, prop, startToEndDistanceStr, fdStr, siStr, tortStr, angEntStr, angEntNormStr, crossings));
         }
 
         Debug.Log($"Trial summary data saved to: {fullPath}");
@@ -515,18 +546,35 @@ public class DataCollector : MonoBehaviour
     // Estimates the planar fractal dimension of the trajectory via box-counting.
     // Uses grids with subdivisions per axis: 2,4,8,... and counts occupied boxes.
     // Returns NaN if insufficient data.
-    private float EstimateFractalDimensionBoxCounting(List<Vector2> pts, float arenaRadius)
+    private float EstimateFractalDimensionBoxCounting(List<Vector2> pts)
     {
         if (pts == null || pts.Count < 2) return float.NaN;
-        float R = Mathf.Max(0.001f, arenaRadius);
 
-        // Compute total path length to detect degenerate paths
+        // Compute path bounds and total length to detect degenerate paths.
+        Vector2 min = pts[0];
+        Vector2 max = pts[0];
         float pathLen = 0f;
-        for (int i = 1; i < pts.Count; i++) pathLen += Vector2.Distance(pts[i - 1], pts[i]);
+        for (int i = 1; i < pts.Count; i++)
+        {
+            Vector2 p = pts[i];
+            min = Vector2.Min(min, p);
+            max = Vector2.Max(max, p);
+            pathLen += Vector2.Distance(pts[i - 1], p);
+        }
         if (pathLen < 1e-3f) return float.NaN; // essentially stationary
 
+        // Cover the trajectory itself, not the full arena. Using the whole arena
+        // makes short paths look point-like at coarse scales and biases D below 1.
+        float side = Mathf.Max(max.x - min.x, max.y - min.y);
+        if (side < 1e-3f) side = pathLen;
+        float padding = Mathf.Max(side * 0.01f, 0.001f);
+        side += padding * 2f;
+        Vector2 center = (min + max) * 0.5f;
+        Vector2 origin = center - Vector2.one * (side * 0.5f);
+
         // Build a densified copy of the path for finer coverage
-        float dsAuto = Mathf.Max((2f * R) / Mathf.Max(4, Mathf.NextPowerOfTwo(Mathf.Clamp(fractalMaxGrid, 4, 1024))), R / 512f);
+        int maxM = Mathf.NextPowerOfTwo(Mathf.Clamp(fractalMaxGrid, 4, 1024));
+        float dsAuto = Mathf.Max(side / Mathf.Max(4, maxM), side / 512f);
         float ds = (fractalResampleStep > 0f) ? fractalResampleStep : dsAuto;
         List<Vector2> dense = new List<Vector2>(pts.Count * 2);
         dense.Add(pts[0]);
@@ -556,16 +604,15 @@ public class DataCollector : MonoBehaviour
         }
 
         // Grid subdivisions (powers of two) up to configured max
-        int maxM = Mathf.NextPowerOfTwo(Mathf.Clamp(fractalMaxGrid, 4, 1024));
         List<int> ms = new List<int>();
         for (int m = 4; m <= maxM; m <<= 1) ms.Add(m);
 
-        List<float> xs = new List<float>(); // log(m)
+        List<float> xs = new List<float>(); // log(1 / cell size)
         List<float> ys = new List<float>(); // log(N)
 
         foreach (int m in ms)
         {
-            float cell = (2f * R) / m;
+            float cell = side / m;
             if (cell <= 0f) continue;
 
             var occupied = new HashSet<long>();
@@ -577,10 +624,10 @@ public class DataCollector : MonoBehaviour
                 Vector2 b = dense[i];
 
                 // Map to grid indices
-                int ax = Mathf.Clamp(Mathf.FloorToInt((a.x + R) / cell), 0, m - 1);
-                int ay = Mathf.Clamp(Mathf.FloorToInt((a.y + R) / cell), 0, m - 1);
-                int bx = Mathf.Clamp(Mathf.FloorToInt((b.x + R) / cell), 0, m - 1);
-                int by = Mathf.Clamp(Mathf.FloorToInt((b.y + R) / cell), 0, m - 1);
+                int ax = Mathf.Clamp(Mathf.FloorToInt((a.x - origin.x) / cell), 0, m - 1);
+                int ay = Mathf.Clamp(Mathf.FloorToInt((a.y - origin.y) / cell), 0, m - 1);
+                int bx = Mathf.Clamp(Mathf.FloorToInt((b.x - origin.x) / cell), 0, m - 1);
+                int by = Mathf.Clamp(Mathf.FloorToInt((b.y - origin.y) / cell), 0, m - 1);
 
                 MarkLineCells(ax, ay, bx, by, occupied);
             }
@@ -589,7 +636,7 @@ public class DataCollector : MonoBehaviour
             // Skip degenerate scales (no occupancy or full saturation)
             if (N <= 0 || N >= m * m) continue;
 
-            xs.Add(Mathf.Log(m));
+            xs.Add(Mathf.Log(1f / cell));
             ys.Add(Mathf.Log((float)N));
         }
 
@@ -613,7 +660,9 @@ public class DataCollector : MonoBehaviour
         
         float D = (float)slope;
         if (float.IsNaN(D)) return float.NaN;
-        return D;
+        // A non-stationary trajectory is treated as a continuous planar curve:
+        // finite grid estimates can dip below 1, but the curve baseline is 1.
+        return Mathf.Clamp(D, 1f, 2f);
     }
 
     private void MarkLineCells(int x0, int y0, int x1, int y1, HashSet<long> occ)
@@ -639,13 +688,16 @@ public class DataCollector : MonoBehaviour
         return len;
     }
 
-    private float ComputeStraightnessIndex(List<Vector2> pts)
+    private float ComputeStraightnessNumerator(List<Vector2> pts)
     {
         if (pts == null || pts.Count < 2) return float.NaN;
-        float pathLen = ComputePathLength(pts);
-        if (pathLen <= 1e-6f) return float.NaN;
-        float disp = Vector2.Distance(pts[0], pts[pts.Count - 1]);
-        float si = disp / pathLen;
+        return Vector2.Distance(pts[0], pts[pts.Count - 1]);
+    }
+
+    private float ComputeStraightnessIndex(float numerator, float denominator)
+    {
+        if (float.IsNaN(numerator) || denominator <= 1e-6f) return float.NaN;
+        float si = numerator / denominator;
         return Mathf.Clamp01(si);
     }
 
@@ -706,6 +758,14 @@ public class DataCollector : MonoBehaviour
             H -= p * Mathf.Log(p, 2f);
         }
         return H; // bits
+    }
+
+    private float NormalizeAngularEntropy(float entropyBits, int bins)
+    {
+        if (float.IsNaN(entropyBits) || bins <= 1) return float.NaN;
+        float maxEntropyBits = Mathf.Log(bins, 2f);
+        if (maxEntropyBits <= 1e-6f) return float.NaN;
+        return Mathf.Clamp01(entropyBits / maxEntropyBits);
     }
 
     private int CountSelfCrossings(List<Vector2> pts)
